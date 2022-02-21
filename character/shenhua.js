@@ -205,7 +205,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					player.awakenSkill('hongju');
 					var cards=player.getStorage('zhengrong');
 					if(!cards.length||!player.countCards('h')){
-						event.finish();
+						event.goto(2);
 						return;
 					}
 					var next=player.chooseToMove('征荣：是否交换“荣”和手牌？');
@@ -1011,6 +1011,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 			
 			"drlt_congjian":{
 				audio:2,
+				audioname2:{tongyuan:'ocongjian_tongyuan'},
 				trigger:{
 					target:"useCardToTargeted",
 				},
@@ -2309,7 +2310,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 				},
 				preHidden:true,
 				check:function(event,player){
-					return get.attitude(player,target.player)<=0;
+					return get.attitude(player,event.target)<=0;
 				},
 				logTarget:'target',
 				content:function(){
@@ -3086,7 +3087,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 				juexingji:true,
 				zhuSkill:true,
 				keepSkill:true,
-				derivation:'jijiang',
+				derivation:'rejijiang',
 				trigger:{player:'phaseZhunbeiBegin'},
 				forced:true,
 				filter:function(event,player){
@@ -3101,13 +3102,13 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					'step 1'
 					player.recover();
 					if(player.hasSkill('ruoyu')){
-						player.addSkill('jijiang');
+						player.addSkill('rejijiang');
 					}
 					else{
-						player.addAdditionalSkill('ruoyu','jijiang');
+						player.addAdditionalSkill('ruoyu','rejijiang');
 					}
 					if(!player.isZhu){
-						player.storage.zhuSkill_ruoyu=['jijiang'];
+						player.storage.zhuSkill_ruoyu=['rejijiang'];
 					}
 					else{
 						event.trigger('zhuUpdate');
@@ -7406,7 +7407,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 			jiaxu:['re_jiaxu','jiaxu','ns_jiaxu'],
 			dongzhuo:['ol_dongzhuo','sp_dongzhuo','re_dongzhuo','dongzhuo'],
 			dengai:['re_dengai','ol_dengai','dengai'],
-			sp_zhanghe:['sp_zhanghe','yj_zhanghe'],
+			sp_ol_zhanghe:['sp_ol_zhanghe','yj_zhanghe','sp_zhanghe'],
 			jiangwei:['ol_jiangwei','re_jiangwei','jiangwei'],
 			liushan:['ol_liushan','re_liushan','liushan'],
 			sunce:['re_sunben','re_sunce','sunce'],
@@ -7609,7 +7610,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 			dengai:'邓艾',
 			sunce:'孙策',
 			zhangzhang:'张昭张紘',
-			caiwenji:'蔡文姬',
+			caiwenji:'蔡琰',
 			zuoci:'左慈',
 
 			zhurong:'祝融',

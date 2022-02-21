@@ -361,7 +361,7 @@ game.import('mode',function(lib,game,ui,get,ai,_status){
 				guozhan_double:['gz_tangzi','gz_liuqi','gz_mengda','gz_mifangfushiren','gz_zhanglu','gz_shixie','gz_xuyou','gz_xiahouba','gz_panjun','gz_xf_sufei','gz_wenqin','gz_pengyang'],
 				guozhan_yexinjia:['gz_zhonghui','gz_simazhao','gz_gongsunyuan','gz_sunchen'],
 				guozhan_zongheng:['gz_huaxin','gz_luyusheng','gz_zongyu','gz_miheng','gz_fengxi','gz_dengzhi','gz_re_xunchen'],
-				guozhan_others:["gz_lingcao","gz_lifeng","gz_beimihu","gz_jianggan","gz_key_ushio","gz_sp_duyu","gz_re_nanhualaoxian","gz_zhouyi"],
+				guozhan_others:["gz_lingcao","gz_lifeng","gz_beimihu","gz_jianggan","gz_key_ushio","gz_sp_duyu","gz_re_nanhualaoxian","gz_zhouyi","gz_lvlingqi"],
 			}
 		},
 		characterPack:{
@@ -515,6 +515,7 @@ game.import('mode',function(lib,game,ui,get,ai,_status){
 				gz_re_nanhualaoxian:['male','qun',4,['gzgongxiu','gzjinghe']],
 				gz_zhouyi:['female','wu',3,['gzzhukou','gzduannian','gzlianyou']],
 				gz_re_xunchen:['male','qun',3,['gzfenglve','gzanyong']],
+				gz_lvlingqi:['female','qun',4,['guowu','gzshenwei','gzzhuangrong']],
 				
 				gz_cuimao:['male','wei',3,['gzzhengbi','gzfengying'],[]],
 				gz_yujin:['male','wei',4,['gzjieyue'],['gzskin']],
@@ -544,6 +545,42 @@ game.import('mode',function(lib,game,ui,get,ai,_status){
 			}
 		},
 		skill:{
+			//吕玲绮
+			gzshenwei:{
+				audio:'llqshenwei',
+				mainSkill:true,
+				init:function(player){
+					if(player.checkMainSkill('gzshenwei')){
+						player.removeMaxHp();
+					}
+				},
+				trigger:{player:'phaseDrawBegin2'},
+				forced:true,
+				filter:(event)=>!event.numFixed,
+				preHidden:true,
+				content:function(){
+					trigger.num+=2;
+				},
+				mod:{
+					maxHandcard:(player,num)=>num+2,
+				},
+			},
+			gzzhuangrong:{
+				audio:'zhuangrong',
+				enable:'phaseUse',
+				usable:1,
+				filter:function(event,player){
+					return !player.hasSkill('wushuang')&&player.hasCard(function(card){
+						return get.type(card,player)=='trick';
+					},'h');
+				},
+				filterCard:function(card,player){
+					return get.type(card,player)=='trick';
+				},
+				content:function(){
+					player.addTempSkill('wushuang','phaseUseEnd');
+				},
+			},
 			//荀谌
 			gzfenglve:{
 				audio:'refenglve',
@@ -773,6 +810,7 @@ game.import('mode',function(lib,game,ui,get,ai,_status){
 			},
 			//南华老仙
 			gzgongxiu:{
+				audio:'gongxiu',
 				trigger:{player:'phaseDrawBegin2'},
 				preHidden:true,
 				filter:function(event,player){
@@ -780,7 +818,7 @@ game.import('mode',function(lib,game,ui,get,ai,_status){
 				},
 				content:function(){
 					trigger.num--;
-					player.addTempSkill('gzgongxiu2','phaseUseAfter');
+					player.addTempSkill('gzgongxiu2','phaseDrawAfter');
 				},
 			},
 			gzgongxiu2:{
@@ -821,6 +859,7 @@ game.import('mode',function(lib,game,ui,get,ai,_status){
 				},
 			},
 			gzjinghe:{
+				audio:'jinghe',
 				enable:'phaseUse',
 				filter:function(event,player){
 					return player.maxHp>0&&player.countCards('h')>0&&!player.hasSkill('gzjinghe_clear');
@@ -1189,7 +1228,7 @@ game.import('mode',function(lib,game,ui,get,ai,_status){
 				enable:'phaseUse',
 				usable:1,
 				filterTarget:function(card,player,target){
-					return target.countGainableCards(player,'h')>0;
+					return target!=player&&target.countGainableCards(player,'h')>0;
 				},
 				content:function(){
 					'step 0'
@@ -2113,13 +2152,15 @@ game.import('mode',function(lib,game,ui,get,ai,_status){
 				usable:1,
 				delay:false,
 				filter:function(event,player){
-					return player.countCards('h',{color:'red'})&&player.countCards('h',{color:'black'});
+					return player.countCards('h')>0;
 				},
 				content:function(){
 					'step 0'
 					player.showHandcards();
 					'step 1'
-					player.chooseControl('红色','黑色').set('ai',function(){
+					if(!player.countCards('h',{color:'red'})) event._result={control:'黑色'};
+					else if(!player.countCards('h',{color:'black'})) event._result={control:'红色'};
+					else player.chooseControl('红色','黑色').set('ai',function(){
 						var player=_status.event.player,num=player.maxHp-player.getStorage('gzhuaiyi').length;
 						if(player.countCards('h',{color:'red'})<=num&&
 						player.countCards('h',{color:'black'})>num) return '红色';
@@ -2656,11 +2697,15 @@ game.import('mode',function(lib,game,ui,get,ai,_status){
 					}).set('sourcex',trigger.player).setHiddenSkill(event.name);
 					player.addTempSkill('gzzhuhai2');
 					next.oncard=function(card,player){
-						if(trigger.player.getHistory('sourceDamage',function(evt){
-							return evt.player.isFriendOf(player);
-						}).length){
-							player.addTempSkill('gzzhuhai2');
-							card.gzzhuhai_tag=true;
+						try{
+							if(trigger.player.getHistory('sourceDamage',function(evt){
+								return evt.player.isFriendOf(player);
+							}).length){
+								player.addTempSkill('gzzhuhai2');
+								card.gzzhuhai_tag=true;
+							}
+						}catch(e){
+							alert('发生了一个导致【诛害】无法正常触发无视防具效果的错误。请关闭十周年UI/手杀UI等扩展以解决');
 						}
 					}
 				},
@@ -3958,6 +4003,7 @@ game.import('mode',function(lib,game,ui,get,ai,_status){
 			},
 
 			yigui:{
+				audio:2,
 				hiddenCard:function(player,name){
 					var storage=player.storage.yigui;
 					if(name=='shan'||name=='wuxie'||!storage||!storage.character.length||storage.used.contains(name)||!lib.inpile.contains(name)) return false;
@@ -4107,7 +4153,7 @@ game.import('mode',function(lib,game,ui,get,ai,_status){
 							complexCard:true,
 							check:function(){return 1},
 							popname:true,
-							audio:"huashen1",
+							audio:"yigui",
 							viewAs:{
 								name:name,
 								nature:nature,
@@ -4191,7 +4237,7 @@ game.import('mode',function(lib,game,ui,get,ai,_status){
 				},
 			},
 			"yigui_init":{
-				audio:"huashen",
+				audio:"yigui",
 				trigger:{
 					player:'showCharacterAfter',
 				},
@@ -4251,7 +4297,7 @@ game.import('mode',function(lib,game,ui,get,ai,_status){
 							complexCard:true,
 							check:function(){return 1},
 							popname:true,
-							audio:"huashen1",
+							audio:"yigui",
 							viewAs:{
 								name:'shan',
 								isCard:true,
@@ -4313,7 +4359,7 @@ game.import('mode',function(lib,game,ui,get,ai,_status){
 							complexCard:true,
 							check:function(){return 1},
 							popname:true,
-							audio:"huashen1",
+							audio:"yigui",
 							viewAs:{
 								name:'wuxie',
 								isCard:true,
@@ -4345,7 +4391,7 @@ game.import('mode',function(lib,game,ui,get,ai,_status){
 					player:'damageEnd',
 					global:'dyingAfter',
 				},
-				audio:"xinsheng",
+				audio:2,
 				frequent:true,
 				preHidden:true,
 				filter:function(event,player){
@@ -11059,6 +11105,10 @@ game.import('mode',function(lib,game,ui,get,ai,_status){
 			pengyang:'彭羕',
 			sunchen:'孙綝',
 			gz_dengzhi:'邓芝',
+			gzshenwei:'神威',
+			gzshenwei_info:'主将技，此武将牌的阴阳鱼个数减0.5。摸牌阶段，你令额定摸牌数+2。你的手牌上限+2。',
+			gzzhuangrong:'妆戎',
+			gzzhuangrong_info:'出牌阶段限一次。你可弃置一张锦囊牌并获得〖无双〗至出牌阶段结束。',
 			gzfenglve:'锋略',
 			gzfenglve_info:'出牌阶段限一次，你可以和一名其他角色进行拼点。若你赢，其将区域内的两张牌交给你；若你输，你交给其一张牌。',
 			gzfenglve_zongheng:'锋略·纵横',
