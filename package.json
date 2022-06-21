@@ -1,0 +1,25 @@
+{
+  "name": "noname",
+  "version": "1.0.0",
+  "description": "",
+  "main": "sw.js",
+  "dependencies": {
+    "options": "^0.0.6",
+    "ws": "^1.0.1",
+    "ultron": "^1.0.2"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/libccy/noname.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/libccy/noname/issues"
+  },
+  "homepage": "https://github.com/libccy/noname#readme"
+}

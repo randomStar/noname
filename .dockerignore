@@ -1,5 +1,6 @@
 .git/
 .git/*
+<<<<<<< HEAD
 .DS_Store
 .DS_Store?
 ._*
@@ -7,3 +8,5 @@
 .Trashes
 ehthumbs.db
 Thumbs.db
+=======
+>>>>>>> origin/master

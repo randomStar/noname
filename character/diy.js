@@ -2661,6 +2661,13 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 			chihaya_youfeng:{
 				enable:'chooseToUse',
 				zhuanhuanji:true,
+				mark:true,
+				intro:{
+					content:function(storage,player){
+						return storage?'每轮限一次，你可以废除你的一个装备栏，视为使用一张基本牌。':'每轮限一次，你可以加1点体力上限，视为使用一张普通锦囊牌。';
+					},
+				},
+				marktext:'☯',
 				init:function(player){
 					player.storage.chihaya_youfeng=false;
 				},
@@ -2785,7 +2792,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 								player.gainMaxHp();
 								delete event.result.skill;
 								player.addTempSkill('chihaya_youfeng_'+(player.storage.chihaya_youfeng||false),'roundStart');
-								player.storage.chihaya_youfeng=!player.storage.chihaya_youfeng;
+								player.changeZhuanhuanji('chihaya_youfeng');
 							},
 						}
 						if(typeof links[1]=='number') links.reverse();
@@ -2807,7 +2814,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 								player.disableEquip(lib.skill.chihaya_youfeng_backup.equip);
 								delete event.result.skill;
 								player.addTempSkill('chihaya_youfeng_'+(player.storage.chihaya_youfeng||false),'roundStart');
-								player.storage.chihaya_youfeng=!player.storage.chihaya_youfeng;
+								player.changeZhuanhuanji('chihaya_youfeng');
 							},
 						}
 					},
@@ -2833,8 +2840,8 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					},
 				},
 			},
-			chihaya_youfeng_true:{},
-			chihaya_youfeng_false:{},
+			chihaya_youfeng_true:{charlotte:true},
+			chihaya_youfeng_false:{charlotte:true},
 			rumi_shuwu:{
 				mod:{
 					cardUsable:function(card){
@@ -3423,7 +3430,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					if(result.bool) trigger.num+=num;
 				},
 			},
-			shiroha_guying_temp:{},
+			shiroha_guying_temp:{charlotte:true},
 			shiroha_jiezhao:{
 				trigger:{global:'judge'},
 				direct:true,
@@ -4108,7 +4115,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					if(player._trueMe&&player._trueMe.isTurnedOver()) player._trueMe.turnOver();
 				},
 			},
-			yuu_lveduo4:{},
+			yuu_lveduo4:{charlotte:true},
 			godan_yuanyi:{
 				trigger:{player:'phaseBegin'},
 				forced:true,
@@ -4563,9 +4570,9 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 						var info=lib.card[to.storage.kud_qiaoshou_equip2];
 						if(info&&info.distance&&info.distance.globalTo) return distance+info.distance.globalTo;
 					},
-					attackFrom:function(from,to,distance){
+					attackRange:function(from,distance){
 						var info=lib.card[from.storage.kud_qiaoshou_equip2];
-						if(info&&info.distance&&info.distance.attackFrom) return distance+info.distance.attackFrom;
+						if(info&&info.distance&&info.distance.attackFrom) return distance-info.distance.attackFrom;
 					},
 					attackTo:function(from,to,distance){
 						var info=lib.card[to.storage.kud_qiaoshou_equip2];
@@ -4777,7 +4784,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					}
 				},
 			},
-			misuzu_zhongxing_haruko:{},
+			misuzu_zhongxing_haruko:{charlotte:true},
 			kamome_suitcase:{
 				trigger:{player:['phaseJudgeBefore','phaseDiscardBefore','turnOverBefore']},
 				forced:true,
@@ -4884,6 +4891,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 				},
 				direct:true,
 				zhuanhuanji:true,
+				marktext:'☯',
 				mark:true,
 				intro:{
 					content:function(storage,player){
@@ -4931,7 +4939,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 						player.logSkill('kamome_jieban',target);
 						player.addTempSkill('kamome_jieban_phase');
 						target.gain(result.cards,player,'giveAuto');
-						player.storage.kamome_jieban=!player.storage.kamome_jieban;
+						player.changeZhuanhuanji('kamome_jieban');
 					}
 					else event.finish();
 					'step 2'
@@ -4957,7 +4965,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					player.gain(result.cards,target,'giveAuto');
 				},
 			},
-			kamome_jieban_phase:{},
+			kamome_jieban_phase:{charlotte:true},
 			nao_duyin:{
 				trigger:{global:'phaseBegin'},
 				filter:function(event,player){
@@ -6311,7 +6319,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					'step 3'
 					if(result.bool) trigger.player.gain(result.cards,player,'giveAuto')
 				},
-				subSkill:{true:{},false:{}},
+				subSkill:{true:{charlotte:true},false:{charlotte:true}},
 				ai:{expose:0.2},
 			},
 			noda_fengcheng:{
@@ -6828,7 +6836,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					}
 				}
 			},
-			akane_yifu3:{},
+			akane_yifu3:{charlotte:true},
 			sasami_miaobian:{
 				derivation:['sasami_gongqing','sasami_funan','sasami_baoqiu'],
 				init2:function(player){
@@ -6922,8 +6930,8 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 			},
 			rin_baoqiu:{
 				mod:{
-					attackFrom:function(rin,riki,ball){
-						return ball-2;
+					attackRange:function(rin,ball){
+						return ball+2;
 					},
 				},
 				trigger:{player:'useCardToPlayered'},
@@ -7121,8 +7129,8 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					markcount:'expansion',
 				},
 				mod:{
-					attackFrom:function(from,to,num){
-						return num-from.getExpansions('shiina_qingshen').length;
+					attackRange:function(from,num){
+						return num+from.getExpansions('shiina_qingshen').length;
 					},
 					maxHandcard:function(from,num){
 						return num+from.getExpansions('shiina_qingshen').length;
@@ -7564,7 +7572,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					}
 				},
 			},
-			haruka_kanata:{},
+			haruka_kanata:{charlotte:true},
 			tsumugi_mugyu:{
 				audio:5,
 				trigger:{target:'useCardToTargeted'},
@@ -7935,13 +7943,17 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 				},
 				content:function(){
 					if(trigger.name=='dying') trigger.cancel();
-					else if(event.triggername=='phaseBeginStart') player.addTempSkill('iwasawa_refenyin');
+					else if(event.triggername=='phaseBeginStart') player.addTempSkill('iwasawa_fenyin');
 					else player.die();
 				},
 				nobracket:true,
-				derivation:'iwasawa_refenyin',
+				derivation:'iwasawa_fenyin',
 			},
 			iwasawa_refenyin:{
+				audio:2,
+				audioname2:{
+					wufan:'refenyin_wufan',
+				},
 				trigger:{global:['loseAfter','cardsDiscardAfter']},
 				forced:true,
 				filter:function(event,player){
@@ -9008,7 +9020,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					}
 				},
 			},
-			noname_duocai2:{},
+			noname_duocai2:{charlotte:true},
 			nsbizhao:{
 				trigger:{player:'showCharacterAfter'},
 				forced:true,
@@ -9338,7 +9350,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					}
 				},
 			},
-			nsweiyuan2:{},
+			nsweiyuan2:{charlotte:true},
 			nsweiyuan_use_backup:{},
 			nsweiyuan_use:{
 				enable:'phaseUse',
@@ -9791,7 +9803,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					}
 				},
 			},
-			nsxianhai_round:{},
+			nsxianhai_round:{charlotte:true},
 			nsxingchu:{
 				trigger:{global:'die'},
 				forceDie:true,
@@ -10297,7 +10309,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					return 0;
 				},
 			},
-			junktaoluan_backup:{},
+			junktaoluan_backup:{charlotte:true},
 			
 			nshuaishuang:{
 				trigger:{player:'phaseJieshuBegin'},
@@ -15900,7 +15912,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 			nsfuge:'覆戈',
 			nsfuge_info:'你的回合结束后，你可以执行一个额外的回合，此回合的摸牌阶段，你于摸牌阶段额外摸X张牌（X为你已损失的体力值）；若如此做，直到洗牌前，你不能再发动此技能',
 			nstanbing:'谈兵',
-			nstanbing_info:'摸牌阶段开始时，你可弃置一张牌，然后摸X张牌(X为你弃置牌的名称字数)，若如此做，本回合你不可使用或打出【杀】',
+			nstanbing_info:'摸牌阶段开始时，你可弃置一张手牌，然后摸X张牌(X为你弃置牌的名称字数)，若如此做，本回合你不可使用或打出【杀】',
 			nsxinzhan:'心战',
 			nsxinzhan_info:'出牌阶段限一次，你可将任意张手牌交给一名其他角色，若如此做，该角色失去X点体力(X为你交给其的牌张数的一半，向下取整)，若你给的牌达到六张，则改为该角色失去一点体力上限',
 			nsfuhuo:'符火',
