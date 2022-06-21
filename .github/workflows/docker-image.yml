@@ -17,7 +17,7 @@ jobs:
     - name: Build the Docker image
       run: docker build . --file Dockerfile --tag noname:$(date +%s)
     - name: Create a Release
-    - uses: elgohr/Github-Release-Action@v4
+      uses: elgohr/Github-Release-Action@v4
       env:
         GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
       with:
