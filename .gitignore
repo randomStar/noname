@@ -6,3 +6,7 @@
 ehthumbs.db
 Thumbs.db
 localStorage.json
+
+workbox-*.js
+workbox-*.js.map
+!workbox-config.js

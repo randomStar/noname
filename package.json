@@ -2,7 +2,7 @@
   "name": "noname",
   "version": "1.0.0",
   "description": "",
-  "main": "service-worker.js",
+  "main": "sw.js",
   "dependencies": {
     "options": "^0.0.6",
     "ws": "^1.0.1",
