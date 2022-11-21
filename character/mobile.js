@@ -782,6 +782,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					},
 					backup:function(links,player){
 						return {
+							audio:'buxu',
 							index:['诗经','尚书','仪礼','易经','乐经','春秋'].indexOf(links.control),
 							filterCard:true,
 							position:'he',
@@ -1859,7 +1860,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					'step 0'
 					player.draw();
 					'step 1'
-					if(player.canCompare(target)) player.chooseToCompare(target).set('preserve','lose');
+					if(player.canCompare(target)) player.chooseToCompare(target).set('small',true);
 					else event.finish();
 					'step 2'
 					if(!result.bool){
@@ -14899,7 +14900,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					var switchToAuto=function(){
 						game.pause();
 						game.countChoose();
-						setTimeout(function(){
+						event.timeout=setTimeout(function(){
 							_status.imchoosing=false;
 							event._result={
 								bool:true,
@@ -14946,6 +14947,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 							var skip=function(){
 								if(event.pingcai_delayed){
 									delete event.pingcai_delayed;
+									clearTimeout(event.timeout);
 									event._result={
 										bool:true,
 									};
