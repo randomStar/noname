@@ -1132,7 +1132,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 							if(result.bool){
 								var target=result.targets[0];
 								player.logSkill('xuanbei_give',target);
-								target.gain(cards,'gain2');
+								target.gain(cards,'gain2').giver=player;
 							}
 							else player.storage.counttrigger.xuanbei_give--;
 						},
@@ -1327,7 +1327,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 									if(!target.storage.caozhao_info) target.storage.caozhao_info={};
 									target.storage.caozhao_info[cards[0].cardid]=lib.skill.caozhao_backup.cardname;
 									target.addSkill('caozhao_info');
-									target.gain(cards,player,'give').gaintag.add('caozhao');
+									player.give(cards,target,'give').gaintag.add('caozhao');
 								}
 								else{
 									if(!player.storage.caozhao_info) player.storage.caozhao_info={};
@@ -1760,16 +1760,14 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 			zhongyun2:{
 				audio:'zhongyun',
 				trigger:{
-					player:['loseAfter','gainAfter'],
+					player:['loseAfter'],
 					global:['equipAfter','addJudgeAfter','gainAfter','loseAsyncAfter','addToExpansionAfter'],
 				},
 				forced:true,
 				filter:function(event,player){
-					if(event.name!='gain'||player!=event.player){
-						var evt=event.getl(player);
-						if(!evt||!evt.hs||!evt.hs.length) return false;
-					}
-					return player.countCards('h')==player.hp;
+					var cards1=event.getl(player).hs,cards2=[];
+					if(event.getg) cards2=event.getg(player);
+					return (cards1.length>0||cards2.length>0)&&player.countCards('h')==player.hp;
 				},
 				usable:1,
 				content:function(){
@@ -1991,7 +1989,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					'step 0'
 					trigger.player.chooseCard('he',true,'将一张牌交给'+get.translation(player));
 					'step 1'
-					if(result.bool) player.gain(result.cards,trigger.player,'giveAuto');
+					if(result.bool) trigger.player.give(result.cards,player);
 					'step 2'
 					var card=player.getEquip('cheliji_feilunzhanyu');
 					if(card) player.discard(card);
@@ -2073,7 +2071,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					var cards=player.getExpansions('qiaoyan');
 					if(cards.length){
 						var source=trigger.source;
-						source.gain(cards,player,'give');
+						source.gain(cards,player,'give','bySelf');
 						event.finish();
 					}
 					else{
@@ -2119,7 +2117,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 				content:function(){
 					'step 0'
 					event.cards=player.getExpansions('qiaoyan');
-					player.chooseTarget(true,'请选择【献珠】的目标','令一名角色获得'+get.translation(event.cards)+'。若该角色不为你自己，则你令其视为对其攻击范围内的另一名角色使用【杀】').set('ai',function(target){
+					player.chooseTarget(true,'请选择【献珠】的目标','将'+get.translation(event.cards)+'交给一名角色。若该角色不为你自己，则你令其视为对其攻击范围内的另一名角色使用【杀】').set('ai',function(target){
 						var player=_status.event.player;
 						var eff=get.sgn(get.attitude(player,target))*get.value(_status.event.getParent().cards[0],target);
 						if(player!=target) eff+=Math.max.apply(null,game.filterPlayer(function(current){
@@ -2134,7 +2132,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 						var target=result.targets[0];
 						event.target=target;
 						player.logSkill('xianzhu',target);
-						target.gain(cards,player,'give');
+						player.give(cards,target,'give');
 					}
 					else event.finish();
 					'step 2'
@@ -2607,7 +2605,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					return target!=player&&target.hasZhuSkill('ruilve',player)&&!target.hasSkill('ruilve3');
 				},
 				content:function(){
-					target.gain(cards,player,'giveAuto');
+					player.give(cards,target);
 					target.addTempSkill('ruilve3','phaseUseEnd');
 				},
 				ai:{
@@ -2694,7 +2692,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 				filter:function(event,player){
 					var target=_status.currentPhase;
 					if(!target||!target.isIn()||event.type!='discard'||event.getlx===false||!target.isPhaseUsing()) return false;
-					var evt=event.getl(player);
+					var evt=event.getl(target);
 					for(var i of evt.hs){
 						if(get.position(i,true)=='d') return true;
 					}
@@ -2748,8 +2746,8 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					player.chooseToCompare(target);
 					'step 1'
 					if(result.bool&&target.isAlive()){
-						var cards=target.getCards('h');
-						if(cards.length) player.gain(cards,target,'giveAuto');
+						var num=target.countCards('h');
+						if(num>0) player.gainPlayerCard(target,true,'h',num);
 					}
 					else event.finish();
 					'step 2'
@@ -2757,7 +2755,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					if(num&&target.isAlive()) player.chooseCard('h',num,true,'交给'+get.translation(target)+get.cnNumber(num)+'张牌')
 					else event.finish();
 					'step 3'
-					if(result.bool&&result.cards&&result.cards.length) target.gain(result.cards,player,'giveAuto');
+					if(result.bool&&result.cards&&result.cards.length) player.give(result.cards,target);
 				},
 				ai:{
 					order:1,
