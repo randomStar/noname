@@ -1547,6 +1547,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 						audio:'yijin',
 						trigger:{player:'phaseBegin'},
 						forced:true,
+						check:()=>false,
 						filter:function(event,player){
 							return !lib.skill.yijin.getKane(player).length;
 						},
@@ -3152,7 +3153,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 				},
 				content:function(){
 					'step 0'
-					player.chooseButton([get.prompt('spyanji'),[['zhengsu_leijin','zhengsu_bianzhen','zhengsu_mingzhi'],'vcard']]).set('ai',()=>Math.random());
+					player.chooseButton([get.prompt('spzhengjun'),[['zhengsu_leijin','zhengsu_bianzhen','zhengsu_mingzhi'],'vcard']]).set('ai',()=>Math.random());
 					'step 1'
 					if(result.bool){
 						player.logSkill('spzhengjun',player);
@@ -3272,6 +3273,9 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					},
 					globalTo:function(from,to,distance){
 						if(to.countMark('spshidi')%2==1) return distance+1;
+					},
+					aiOrder:function(player,card,num){
+						if(from.countMark('spshidi')%2==0&&card.name=='sha'&&get.color(card)=='black') return num+0.1;
 					},
 				},
 				mark:true,
@@ -5041,6 +5045,8 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 				audio:'yinlang',
 				trigger:{player:'phaseBegin'},
 				direct:true,
+				forced:true,
+				locked:false,
 				filter:function(event,player){
 					return !player.hasSkill('yaohu_round')&&game.hasPlayer(function(current){
 						return current.group&&current.group!='unknown';
@@ -6013,7 +6019,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 			xingbu:{
 				audio:2,
 				trigger:{player:'phaseJieshuBegin'},
-				prompt2:'展示牌堆顶的三张牌，并根据其中红色牌的数量，令一名其他角色获得一种效果',
+				prompt2:'展示牌堆顶的三张牌，并可以根据其中红色牌的数量，令一名其他角色获得一种效果',
 				check:function(event,player){
 					return game.hasPlayer(function(current){
 						return current!=player&&get.attitude(player,current)>0;
@@ -6034,7 +6040,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					for(var i of cards){
 						if(get.color(i,false)=='red') num++;
 					}
-					player.chooseTarget('选择一名其他角色获得星卜效果（'+get.cnNumber(num)+'张）',lib.filter.notMe,true).set('ai',function(target){
+					player.chooseTarget('是否选择一名其他角色获得星卜效果（'+get.cnNumber(num)+'张）？',lib.filter.notMe).set('ai',function(target){
 						var player=_status.event.player,num=_status.event.getParent().num;
 						var att=get.attitude(player,target);
 						if(num<3) att*=(-1);
@@ -6568,11 +6574,30 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 				content:function(){
 					game.log(player,'移去了所有','#g【备】');
 					player.unmarkSkill('xingqi');
+					player.addTempSkill('xinzifu_limit');
+					player.addMark('xinzifu_limit',1,false);
 				},
 				ai:{
 					neg:true,
 					combo:'xingqi',
 				},
+				subSkill:{
+					limit:{
+						charlotte:true,
+						markimage:'image/card/handcard.png',
+						intro:{
+							content:function(storage,player){
+								var num=-player.countMark('xinzifu_limit');
+								return '手牌上限'+num;
+							}
+						},
+						mod:{
+							maxHandcard:function(player,num){
+								return num-player.countMark('xinzifu_limit');
+							}
+						},
+					}
+				}
 			},
 			mibei:{
 				audio:2,
@@ -11193,17 +11218,20 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 				trigger:{target:'useCardToTarget'},
 				direct:true,
 				filter:function(event,player){
-					return event.card.name=='sha';
+					return event.card.name=='sha'&&game.hasPlayer(function(current){
+						return current!=player&&!event.targets.contains(current)&&lib.filter.targetEnabled(event.card,event.player,current);
+					});
 				},
 				content:function(){
 					"step 0"
 					player.chooseTarget(get.prompt2('xinqiuyuan'),function(card,player,target){
-						return target!=player&&!_status.event.targets.contains(target)&&_status.event.playerx.canUse('sha',target,false);
+						var evt=_status.event.getTrigger();
+						return target!=player&&!evt.targets.contains(target)&&lib.filter.targetEnabled(evt.card,evt.player,target);
 					}).set('ai',function(target){
 						var trigger=_status.event.getTrigger();
 						var player=_status.event.player;
 						return get.effect(target,trigger.card,trigger.player,player)+0.1;
-					}).set('targets',trigger.targets).set('playerx',trigger.player);
+					});
 					"step 1"
 					if(result.bool){
 						var target=result.targets[0];
@@ -17200,7 +17228,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 			ly_piliche:{
 				trigger:{source:'damageSource'},
 				check:function(event,player){
-					return get.attitude(player,event.player)*get.value(event.player.getDiscardableCards(player,'e'),event.player)>0;
+					return get.attitude(player,event.player)*get.value(event.player.getDiscardableCards(player,'e'),event.player)<=0;
 				},
 				filter:function(event,player){
 					return player!=event.player&&event.player.countDiscardableCards(player,'e')>0;
@@ -17821,11 +17849,11 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 			sp_chendong:['tw_chendong','sp_chendong','chendong'],
 			sp_jiangqing:['tw_jiangqing','sp_jiangqing','jiangqing'],
             zhaotongzhaoguang:['dc_zhaotongzhaoguang','zhaotongzhaoguang'],
-            yangbiao:['yangbiao','dc_yangbiao'],
+            yangbiao:['yangbiao','dc_yangbiao','jsrg_yangbiao'],
 			qiaozhou:['yj_qiaozhou','qiaozhou'],
 			sunhanhua:['dc_qiaozhou','sunhanhua'],
 			sp_duyu:['sp_duyu','pk_sp_duyu'],
-			kongrong:['sp_kongrong','kongrong'],
+			kongrong:['sp_kongrong','jsrg_kongrong','kongrong'],
 		},
 		translate:{
 			liuzan:'手杀留赞',
@@ -17918,6 +17946,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 			"shuijing_card_info":"将一名角色装备区内的防具牌移动到另一名角色对应区域。若场上有存活的司马徽，则改为将1名角色装备区内的1件装备移动到另1角色对应区域。","xinfu_pingcai":"评才",
 			"xinfu_pingcai_info":"出牌阶段限一次，你可以挑选一个宝物并擦拭掉其上面的灰尘。然后，你可以根据宝物类型执行对应的效果。",
 			"xinfu_pdgyingshi":"隐世",
+			"xinfu_pdgyingshi2":"隐世",
 			"xinfu_pdgyingshi_info":"锁定技，你始终跳过准备阶段，判定阶段，结束阶段。你不能被选择为延时锦囊牌的目标。",
 			"pcaudio_wolong_card":"卧龙",
 			"pcaudio_wolong_card_info":"",
@@ -18450,7 +18479,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 			zhiming:'知命',
 			zhiming_info:'准备阶段开始时或弃牌阶段结束时，你摸一张牌，然后可以将一张牌置于牌堆顶。',
 			xingbu:'星卜',
-			xingbu_info:'结束阶段，你可以展示牌堆顶的三张牌，然后根据X值（X为这三张牌中红色牌的数量），令一名其他角色获得对应的效果直到其下回合结束：①三张：其摸牌阶段多摸两张牌，使用【杀】的次数上限+1。②两张：其使用【杀】的次数上限-1，跳过弃牌阶段。③小于两张：其于准备阶段开始时弃置一张手牌。',
+			xingbu_info:'结束阶段，你可以展示牌堆顶的三张牌，然后你可以根据X值（X为这三张牌中红色牌的数量），令一名其他角色获得对应的效果直到其下回合结束：①三张：其摸牌阶段多摸两张牌，使用【杀】的次数上限+1。②两张：其使用【杀】的次数上限-1，跳过弃牌阶段。③小于两张：其于准备阶段开始时弃置一张手牌。',
 			yuanqing:'渊清',
 			yuanqing_info:'锁定技，出牌阶段结束时，你随机将弃牌堆中你本阶段使用过的牌类型的各一张牌置于仁库中。', 
 			shuchen:'疏陈',
