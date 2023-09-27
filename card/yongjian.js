@@ -598,7 +598,7 @@ game.import('card',function(lib,game,ui,get,ai,_status){
 					player.showCards(cards,`${get.translation(player)}对${(targets=>{
 						if(get.itemtype(targets)=='player') targets=[targets];
 						if(targets[0]!=player) return get.translation(targets);
-						const selfTargets=targets.slice();
+						var selfTargets=targets.slice();
 						selfTargets[0]='自己';
 						return get.translation(selfTargets);
 					})(logs)}发动了【${get.skillTranslation(event.name,player)}】`);
@@ -640,6 +640,53 @@ game.import('card',function(lib,game,ui,get,ai,_status){
 							return result.reduce((previousValue,currentValue)=>previousValue+currentValue,0)/result.length;
 						}
 					}
+				}
+			},
+			/**
+			 * @deprecated
+			 */
+			_yongjian_zengyu:{
+				get forceLoad(){
+					return lib.skill._gifting.forceLoad;
+				},
+				set forceLoad(forceLoad){
+					lib.skill._gifting.forceLoad=forceLoad;
+				},
+				get filter(){
+					return lib.skill._gifting.filter;
+				},
+				set filter(filter){
+					lib.skill._gifting.filter=filter;
+				},
+				get filterCard(){
+					return lib.skill._gifting.filterCard;
+				},
+				set filterCard(filterCard){
+					lib.skill._gifting.filterCard=filterCard;
+				},
+				get filterTarget(){
+					return lib.skill._gifting.filterTarget;
+				},
+				set filterTarget(filterTarget){
+					lib.skill._gifting.filterTarget=filterTarget;
+				},
+				get check(){
+					return lib.skill._gifting.check;
+				},
+				set check(check){
+					lib.skill._gifting.check=check;
+				},
+				get content(){
+					return lib.skill._gifting.content;
+				},
+				set content(content){
+					lib.skill._gifting.content=content;
+				},
+				get ai(){
+					return lib.skill._gifting.ai;
+				},
+				set ai(ai){
+					lib.skill._gifting.ai=ai;
 				}
 			}
 		},
