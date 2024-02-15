@@ -34,15 +34,33 @@ export const importMode = generateImportFunction('mode', (name) => `../../mode/$
  */
 function generateImportFunction(type, pathParser) {
 	return async (name) => {
-		const path = pathParser(name);
+		if(type == 'extension' && !game.hasExtension(name) && !lib.config.all.stockextension.includes(name)){
+			await game.import(type,await createEmptyExtension(name));
+			return;
+		}
+		let path = pathParser(name);
 		// 通过浏览器自带的script标签导入可直接获取报错信息，且不会影响JS运行
 		// 此时代码内容也将缓存在浏览器中，故再次import后将不会重新执行代码内容（测试下来如此）
-		const [status, script] = await new Promise((resolve) => {
-			const script = document.createElement('script');
-			script.type = 'module';
-			script.src = `${lib.assetURL}noname/init/${path}`;
-			script.onerror = () => resolve(['error', script]);
-			script.onload = () => resolve(['ok', script]);
+		const [status, script] = await new Promise(resolve => {
+			const createScript = () => {
+				const script = document.createElement('script');
+				script.type = 'module';
+				script.src = `${lib.assetURL}noname/init/${path}`;
+				script.onload = () => resolve(['ok', script]);
+				return script;
+			};
+			let script = createScript();
+			script.onerror = () => {
+				if (path.endsWith('.js')) {
+					path = path.slice(0, -3) + '.ts';
+					script.remove();
+					let ts = createScript();
+					ts.onerror = () => resolve(['error', ts]);
+					document.head.appendChild(ts);
+				} else {
+					resolve(['error', script]);
+				}
+			};
 			document.head.appendChild(script);
 		});
 		script.remove();
@@ -52,4 +70,46 @@ function generateImportFunction(type, pathParser) {
 		if (modeContent.type !== type) throw new Error(`Loaded Content doesn't conform to "${type}" but "${modeContent.type}".`);
 		await game.import(type, modeContent.default);
 	}
+}
+
+async function createEmptyExtension(name){
+	const extensionInfo = await lib.init.promises.json(`${lib.assetURL}extension/${name}/info.json`)//await import(`../../extension/${name}/info.json`,{assert:{type:'json'}})
+	.then(info=>{
+		return info;
+	},()=>{
+		return {
+			name:name,
+			intro:`扩展<b>《${name}》</b>尚未开启，请开启后查看信息。（建议扩展添加info.json以在关闭时查看信息）`,
+			author:"未知",
+			diskURL:"",
+			forumURL:"",
+			version:"1.0",
+		};
+	});
+	return {name:extensionInfo.name,content:function(config,pack){},precontent:function(){},config:{},help:{},package:{
+		character:{
+			character:{
+			},
+			translate:{
+			},
+		},
+		card:{
+			card:{
+			},
+			translate:{
+			},
+			list:[],
+		},
+		skill:{
+			skill:{
+			},
+			translate:{
+			},
+		},
+		intro:extensionInfo.intro?extensionInfo.intro.replace("${assetURL}",lib.assetURL):"",
+		author:extensionInfo.author?extensionInfo.author:"未知",
+		diskURL:extensionInfo.diskURL?extensionInfo.diskURL:"",
+		forumURL:extensionInfo.forumURL?extensionInfo.forumURL:"",
+		version:extensionInfo.version?extensionInfo.version:"1.0.0",
+	},files:{"character":[],"card":[],"skill":[],"audio":[]}}
 }

@@ -1,11 +1,11 @@
 "use strict";
 
 new Promise(resolve => {
-	// 客户端自带core.js的请注意跟进
+	// 客户端自带core.js的请注意跟进core.js版本
 	if ('__core-js_shared__' in window) resolve(null);
 	else {
 		const nonameInitialized = localStorage.getItem('noname_inited');
-		const assetURL = typeof nonameInitialized != 'string' || nonameInitialized == 'nodejs' ? '' : nonameInitialized;
+		const assetURL = location.protocol.startsWith('http') || typeof nonameInitialized != 'string' || nonameInitialized == 'nodejs' ? '' : nonameInitialized;
 		const coreJSBundle = document.createElement('script');
 		coreJSBundle.onerror = coreJSBundle.onload = resolve;
 		coreJSBundle.src = `${assetURL}game/core-js-bundle.js`;
@@ -13,7 +13,7 @@ new Promise(resolve => {
 	}
 }).then(() => {
 	const nonameInitialized = localStorage.getItem('noname_inited');
-	const assetURL = typeof nonameInitialized != 'string' || nonameInitialized == 'nodejs' ? '' : nonameInitialized;
+	const assetURL = location.protocol.startsWith('http') || typeof nonameInitialized != 'string' || nonameInitialized == 'nodejs' ? '' : nonameInitialized;
 	const userAgent = navigator.userAgent.toLowerCase();
 
 	const exit = () => {
@@ -62,6 +62,7 @@ new Promise(resolve => {
 		const regex = /(firefox|chrome|safari)\/([\d.]+)/;
 		let result;
 		if (!(result = userAgent.match(regex))) return ["other", NaN];
+		// @ts-ignore
 		if (result[1] !== "safari") return [result[1], parseInt(result[2])];
 		result = userAgent.match(/version\/([\d.]+).*safari/);
 		// @ts-ignore
@@ -78,24 +79,97 @@ new Promise(resolve => {
 	if (core in supportMap && supportMap[core] > version) {
 		const tip = '检测到您的浏览器内核版本无法支持ES Module，请立即升级浏览器或手机webview内核！';
 		console.error(tip);
-		const redirect_tip = '您使用的浏览器或无名杀客户端内核版本过低，已经无法正常运行无名杀！\n点击“确认”以前往GitHub下载最新版无名杀客户端（可能需要科学上网）。\n稍后您的无名杀将自动退出（可能的话）';
+		const redirect_tip = `您使用的浏览器或无名杀客户端内核版本过低，已经无法正常运行无名杀！\n目前使用的浏览器UA信息为：\n${userAgent}\n点击“确认”以前往GitHub下载最新版无名杀客户端（可能需要科学上网）。\n稍后您的无名杀将自动退出（可能的话）`;
 		if (confirm(redirect_tip)) {
 			window.open('https://github.com/libccy/noname/releases/tag/chromium77-client');
 		}
 		exit()
 	}
 	else {
+		// node环境下
+		if (typeof window.require == 'function' &&
+			typeof window.process == 'object' &&
+			typeof window.__dirname == 'string') {
+			// 在http环境下修改__dirname和require的逻辑
+			if (location.protocol.startsWith('http') &&
+				window.__dirname.endsWith('electron.asar\\renderer')) {
+				const path = require('path');
+				window.__dirname = path.join(path.resolve(), 'resources/app');
+				const oldData = Object.entries(window.require);
+				// @ts-ignore
+				window.require = function (moduleId) {
+					try {
+						return module.require(moduleId);
+					} catch {
+						return module.require(path.join(window.__dirname, moduleId));
+					}
+				};
+				oldData.forEach(([key, value]) => {
+					window.require[key] = value;
+				});
+			}
+			// 增加导入ts的逻辑
+			window.require.extensions['.ts'] = function (module, filename) {
+				// @ts-ignore
+				const _compile = module._compile;
+				// @ts-ignore
+				module._compile = function (code, fileName) {
+					/**
+					 * @type { import('typescript') }
+					 */
+					// @ts-ignore
+					const ts = require('./game/typescript.js');
+					// 使用ts compiler对ts文件进行编译
+					const result = ts.transpile(code, {
+						module: ts.ModuleKind.CommonJS,
+						target: ts.ScriptTarget.ES2019,
+						inlineSourceMap: true,
+						resolveJsonModule: true,
+						esModuleInterop: true,
+					}, fileName);
+					// 使用默认的js编译函数获取返回值
+					return _compile.call(this, result, fileName);
+				}
+				// @ts-ignore
+				module._compile(require('fs').readFileSync(filename, 'utf8'), filename);
+			};
+		}
+		if (location.protocol.startsWith('http') && 'serviceWorker' in navigator) {
+			let scope = window.location.protocol + '//' + window.location.host + '/';
+			navigator.serviceWorker.getRegistrations().then(registrations => {
+				let findServiceWorker = false;
+				for (let registration of registrations) {
+					if (registration && registration.active && registration.active.scriptURL == `${scope}service-worker.js`) {
+						findServiceWorker = true;
+					}
+				}
+				navigator.serviceWorker.register(`${scope}service-worker.js`, {
+					updateViaCache: "all",
+					scope,
+				}).then(registration => {
+					// 初次加载worker，需要重新启动一次
+					if (!findServiceWorker) location.reload();
+					navigator.serviceWorker.addEventListener('message', e => {
+						console.log(e);
+					});
+					registration.update();
+					// console.log(`set scope: ${scope}, service worker instance:`, registration);
+				}).catch(e => {
+					console.log('serviceWorker加载失败: ', e);
+				});
+			});
+		}
 		const script = document.createElement('script')
 		script.type = "module";
-		script.src = `${assetURL}game/entry.js`
-		script.async = true
-		script.onerror = (event) => {
-			console.error(event)
-			const message = `您使用的浏览器或《无名杀》客户端加载内容失败！\n若您使用的客户端为自带内核的旧版“兼容版”，请及时更新客户端版本！\n若您使用的客户端为手机端的非兼容版《无名杀》，请尝试更新手机的WebView内核，或者更换为1.8.2版本及以上的兼容版！\n若您是直接使用浏览器加载index.html进行游戏，请改为运行文件夹内的“noname-server.exe”（或使用VSCode等工具启动Live Server），以动态服务器的方式启动《无名杀》！`;
+		script.src = `${assetURL}game/entry.js`;
+		script.async = true;
+		script.onerror = event => {
+			console.error(event);
+			const message = `您使用的浏览器或《无名杀》客户端加载内容失败！\n目前使用的浏览器UA信息为：\n${userAgent}\n若您使用的客户端为自带内核的旧版“兼容版”，请及时更新客户端版本！\n若您使用的客户端为手机端的非兼容版《无名杀》，请尝试更新手机的WebView内核，或者更换为1.8.2版本及以上的兼容版！\n若您是直接使用浏览器加载index.html进行游戏，请改为运行文件夹内的“noname-server.exe”（或使用VSCode等工具启动Live Server），以动态服务器的方式启动《无名杀》！`;
 			console.error(message);
 			alert(message);
-			exit()
+			exit();
 		}
-		document.head.appendChild(script)
+		document.head.appendChild(script);
 	}
 });

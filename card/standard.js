@@ -235,7 +235,9 @@ game.import('card',function(lib,game,ui,get,ai,_status){
 						if(get.cardtag(card,'yingbian_hit')){
 							hit=true;
 							if(targets.some(target=>{
-								return target.mayHaveShan(viewer,'use')&&get.attitude(viewer,target)<0&&get.damageEffect(target,player,viewer,get.natureList(card))>0;
+								return target.mayHaveShan(viewer,'use',target.getCards('h',i=>{
+									return i.hasGaintag('sha_notshan');
+								}))&&get.attitude(viewer,target)<0&&get.damageEffect(target,player,viewer,get.natureList(card))>0;
 							})) base+=5;
 						}
 						if(get.cardtag(card,'yingbian_add')){
@@ -245,7 +247,9 @@ game.import('card',function(lib,game,ui,get,ai,_status){
 						}
 						if(get.cardtag(card,'yingbian_damage')){
 							if(targets.some(target=>{
-								return get.attitude(player,target)<0&&(hit||!target.mayHaveShan(viewer,'use')||player.hasSkillTag('directHit_ai',true,{
+								return get.attitude(player,target)<0&&(hit||!target.mayHaveShan(viewer,'use',target.getCards('h',i=>{
+									return i.hasGaintag('sha_notshan');
+								}))||player.hasSkillTag('directHit_ai',true,{
 								target:target,
 								card:card,
 								},true))&&!target.hasSkillTag('filterDamage',null,{
@@ -305,7 +309,7 @@ game.import('card',function(lib,game,ui,get,ai,_status){
 							if(!player.hasSkillTag('directHit_ai',true,{
 								target:target,
 								card:card,
-							},true)) odds-=0.7*target.mayHaveShan(player,'use',target.getCards(i=>{
+							},true)) odds-=0.7*target.mayHaveShan(player,'use',target.getCards('h',i=>{
 								return i.hasGaintag('sha_notshan');
 							}),'odds');
 							_status.event.putTempCache('sha_result','eff',{
@@ -1306,7 +1310,7 @@ game.import('card',function(lib,game,ui,get,ai,_status){
 				},
 				filterTarget:function(card,player,target){
 					if(player==target) return false;
-					return target.hasCard(card=>lib.filter.canBeGained(card,target,player),get.is.single()?'he':'hej');
+					return target.hasCard(card=>lib.filter.canBeGained(card,player,target),get.is.single()?'he':'hej');
 				},
 				content:function(){
 					let pos=get.is.single()?'he':'hej';
@@ -1563,7 +1567,7 @@ game.import('card',function(lib,game,ui,get,ai,_status){
 				},
 				filterTarget:function(card,player,target){
 					if(player==target) return false;
-					return target.hasCard(card=>lib.filter.canBeDiscarded(card,target,player),get.is.single()?'he':'hej');
+					return target.hasCard(card=>lib.filter.canBeDiscarded(card,player,target),get.is.single()?'he':'hej');
 				},
 				defaultYingbianEffect:'add',
 				content:function(){
@@ -2679,6 +2683,7 @@ game.import('card',function(lib,game,ui,get,ai,_status){
 				priority:5,
 				popup:false,
 				forced:true,
+				silent:true,
 				filter:function(event,player){
 					if(event.card.storage&&event.card.storage.nowuxie) return false;
 					var card=event.card;
