@@ -409,7 +409,18 @@ export class GameEvent {
 				catch {
 					throw new Error(`Content ${item} may not exist.\nlib.element.content[${item}] = ${lib.element.content[item]}`);
 				}
-				this.content = lib.element.content[item];
+
+				if (typeof lib.element.content[item] === "undefined")
+					throw new Error(`Cannot find lib.element.content[${item}]`)
+				// Generator的状态重置
+				else if (lib.element.content[item]._gen) {
+					this.content = lib.element.content[item].bind({
+						gen: null,
+						last: undefined
+					})
+				} else {
+					this.content = lib.element.content[item];
+				}
 				break;
 		}
 		return this;
@@ -453,6 +464,7 @@ export class GameEvent {
 		return this;
 	}
 	resume() {
+		delete this._buttonChoice;
 		delete this._cardChoice;
 		delete this._targetChoice;
 		delete this._skillChoice;
@@ -527,6 +539,7 @@ export class GameEvent {
 			complexSelect: this.complexSelect,
 			complexCard: this.complexCard,
 			complexTarget: this.complexTarget,
+			_buttonChoice: this._buttonChoice,
 			_cardChoice: this._cardChoice,
 			_targetChoice: this._targetChoice,
 			_skillChoice: this._skillChoice,
@@ -630,6 +643,7 @@ export class GameEvent {
 			}
 			delete this.fakeforce;
 		}
+		delete this._buttonChoice;
 		delete this._cardChoice;
 		delete this._targetChoice;
 		delete this._skillChoice;
@@ -652,6 +666,7 @@ export class GameEvent {
 			this.complexTarget = this._backup.complexTarget;
 			this.ai1 = this._backup.ai1;
 			this.ai2 = this._backup.ai2;
+			this._buttonChoice = this._backup._buttonChoice;
 			this._cardChoice = this._backup._cardChoice;
 			this._targetChoice = this._backup._targetChoice;
 			this._skillChoice = this._backup._skillChoice;
@@ -731,8 +746,8 @@ export class GameEvent {
 		}
 	}
 	trigger(name) {
-		if (_status.video) return this;
-		if ((this.name === 'gain' || this.name === 'lose') && !_status.gameDrawed) return this;
+		if (_status.video) return;
+		if ((this.name === 'gain' || this.name === 'lose') && !_status.gameDrawed) return;
 		if (name === 'gameDrawEnd') _status.gameDrawed = true;
 		if (name === 'gameStart') {
 			lib.announce.publish('gameStart', {});
@@ -741,11 +756,11 @@ export class GameEvent {
 			_status.gameStarted = true;
 			game.showHistory();
 		}
-		if (!lib.hookmap[name] && !lib.config.compatiblemode) return this;
-		if (!game.players || !game.players.length) return this;
+		if (!lib.hookmap[name] && !lib.config.compatiblemode) return;
+		if (!game.players || !game.players.length) return;
 		const event = this;
 		let start = [_status.currentPhase, event.source, event.player, game.me, game.players[0]].find(i => get.itemtype(i) == 'player');
-		if (!start) return this;
+		if (!start) return;
 		if (!game.players.includes(start) && !game.dead.includes(start)) start = game.findNext(start);
 		const firstDo = {
 			player: "firstDo",
@@ -836,8 +851,9 @@ export class GameEvent {
 			next.triggername = name;
 			next.playerMap = playerMap;
 			event._triggering = next;
+			return next;
 		}
-		return this;
+		return null;
 	}
 	untrigger(all = true, player) {
 		const evt = this._triggering;

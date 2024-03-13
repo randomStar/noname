@@ -602,7 +602,7 @@ export class Player extends HTMLDivElement {
 				scope = _scope;
 				if (skill.contentFuns.length > 0) createContent();
 				return this;
-			}
+			},
 		};
 	}
 	/**
@@ -728,7 +728,10 @@ export class Player extends HTMLDivElement {
 			virtualCard.init(['', '', card, info && info.cardnature]);
 		}
 		else if (get.itemtype(card) == 'card') executeDelayCardEffect.card = card;
-		else _status.event.next.remove(executeDelayCardEffect);
+		else {
+			_status.event.next.remove(executeDelayCardEffect);
+			executeDelayCardEffect.resolve();
+		}
 		executeDelayCardEffect.judge = judge;
 		executeDelayCardEffect.judge2 = judge2;
 		executeDelayCardEffect.setContent('executeDelayCardEffect');
@@ -759,7 +762,10 @@ export class Player extends HTMLDivElement {
 		const isArray = Array.isArray(cards);
 		if (cards && !isArray) gift.cards = [cards];
 		else if (isArray && cards.length) gift.cards = cards;
-		else _status.event.next.remove(gift);
+		else {
+			_status.event.next.remove(gift);
+			gift.resolve();
+		}
 		gift.deniedGifts = [];
 		gift.setContent('gift');
 		gift._args = Array.from(arguments);
@@ -825,7 +831,10 @@ export class Player extends HTMLDivElement {
 		const isArray = Array.isArray(cards);
 		if (cards && !isArray) recast.cards = [cards];
 		else if (isArray && cards.length) recast.cards = cards;
-		else _status.event.next.remove(recast);
+		else {
+			_status.event.next.remove(recast);
+			recast.resolve();
+		}
 		if (typeof recastingLose != 'function') {
 			if (recastingLose === null) console.trace(`recast的recastingLose参数不应传入null,可以用void 0或undefined占位`);
 			recastingLose = (player, cards) => player.loseToDiscardpile(cards).log = false;
@@ -1073,6 +1082,7 @@ export class Player extends HTMLDivElement {
 		if (!next.source) next.source = _status.event.player;
 		if (!next.slots.length) {
 			_status.event.next.remove(next);
+			next.resolve();
 		}
 		next.setContent('disableEquip');
 		return next;
@@ -1110,6 +1120,7 @@ export class Player extends HTMLDivElement {
 		if (!next.source) next.source = _status.event.player;
 		if (!next.slots.length) {
 			_status.event.next.remove(next);
+			next.resolve();
 		}
 		next.setContent('enableEquip');
 		return next;
@@ -1147,6 +1158,7 @@ export class Player extends HTMLDivElement {
 		if (!next.source) next.source = _status.event.player;
 		if (!next.slots.length) {
 			_status.event.next.remove(next);
+			next.resolve();
 		}
 		next.setContent('expandEquip');
 		return next;
@@ -1556,6 +1568,44 @@ export class Player extends HTMLDivElement {
 		return savable;
 	}
 	/**
+	 * @param { String } from
+	 * @param { String } to
+	 * @returns { GameEventPromise }
+	 */
+	reinitCharacter(from, to, log = true){
+		const rawPairs = [this.name1];
+		if (this.name2) rawPairs.push(this.name2);
+		for (let i=0; i<rawPairs.length; i++){
+			if (rawPairs[i] == from) {
+				rawPairs[i] = to;
+				break;
+			}
+		}
+		return this.changeCharacter(rawPairs, log);
+	}
+	/**
+	 * @param { String[] } newPairs
+	 * @returns { GameEventPromise }
+	 */
+	changeCharacter(newPairs, log = true){
+		if (!Array.isArray(newPairs)){
+			console.warn(`警告：Player[${this.name}].changeCharacter填写了一个错误的参数:`,newPairs);
+			return;
+		}
+		for(let name of newPairs){
+			if(!lib.character[name]){
+				console.warn(`警告：Player[${this.name}]试图将武将牌变更为不存在的武将:`,name);
+				return;
+			}
+		}
+		const next = game.createEvent('changeCharacter');
+		next.player = this;
+		next.newPairs = newPairs;
+		next.log = log;
+		next.setContent('changeCharacter');
+		return next;
+	}
+	/**
 	 * @param { 0 | 1 | 2 } num
 	 * @param { false } [log]
 	 */
@@ -1601,6 +1651,7 @@ export class Player extends HTMLDivElement {
 				this.sex = lib.character[this.name][0];
 				if (this.group == 'unknown') this.group = lib.character[this.name][1];
 				this.classList.remove('unseen');
+				this.classList.remove('unseen_show');
 				break;
 			case 1:
 				if (log !== false) game.log(this, '展示了副将', '#b' + this.name2);
@@ -1608,6 +1659,7 @@ export class Player extends HTMLDivElement {
 				if (this.sex == 'unknown') this.sex = lib.character[this.name2][0];
 				if (this.name.startsWith('unknown')) this.name = this.name2;
 				this.classList.remove('unseen2');
+				this.classList.remove('unseen2_show');
 				break;
 			case 2:
 				if (log !== false) {
@@ -1621,6 +1673,8 @@ export class Player extends HTMLDivElement {
 				if (this.group == 'unknown') this.group = lib.character[this.name][1];
 				this.classList.remove('unseen');
 				this.classList.remove('unseen2');
+				this.classList.remove('unseen_show');
+				this.classList.remove('unseen2_show');
 				break;
 		}
 		if (!this.isUnseen(2)) {
@@ -2005,8 +2059,11 @@ export class Player extends HTMLDivElement {
 		return true;
 	}
 	$disableJudge() {
-		game.addVideo('$disableJudge', this);
 		this.storage._disableJudge = true;
+		for (let i = 0; i < this.node.judges.childNodes.length; i++) {
+			if (this.node.judges.childNodes[i].classList.contains('feichu')) return;
+		}
+		game.addVideo('$disableJudge', this);
 		var card = game.createCard('disable_judge', '', '');
 		card.fix();
 		card.classList.add('feichu');
@@ -2075,6 +2132,10 @@ export class Player extends HTMLDivElement {
 		this.name = character;
 		this.name1 = character;
 		this.tempname = [];
+		this.skin = {
+			name: character,
+			name2: character2,
+		};
 		this.sex = info[0];
 		this.group = info[1];
 		this.hp = hp1;
@@ -2226,6 +2287,7 @@ export class Player extends HTMLDivElement {
 			this.node.name.classList.add('long');
 		}
 		if (info[4].includes('hiddenSkill') && !this.noclick) {
+			if (!_status.video && get.mode() != 'guozhan') this.classList.add('unseen_show');
 			this.classList.add(_status.video ? 'unseen_v' : 'unseen');
 			if (!this.node.name_seat && !_status.video) {
 				this.node.name_seat = ui.create.div('.name.name_seat', get.verticalStr(get.translation(this.name)), this);
@@ -2247,6 +2309,7 @@ export class Player extends HTMLDivElement {
 
 			this.node.count.classList.add('p2');
 			if (info2[4].includes('hiddenSkill') && !this.noclick) {
+				if (!_status.video && get.mode() != 'guozhan') this.classList.add('unseen2_show');
 				this.classList.add(_status.video ? 'unseen2_v' : 'unseen2');
 			}
 			this.node.name2.innerHTML = get.slimName(character2);
@@ -2256,6 +2319,76 @@ export class Player extends HTMLDivElement {
 		}
 
 		return this;
+	}
+	/**
+	 * 换肤换音：想要支持某个武将更换皮肤，必须在lib.character.characterSubstitute中存在该武将的id（以下以name代指武将id，character代指换肤图片名）
+	 *
+	 * 如果换肤换音引用本体的image/character素材作为更换的皮肤且不需要使用本体audio/die以外的地方的配音，则你无需在characterSubstitute中书写关于此皮肤的信息
+	 *
+	 * 如果lib.character[character]不存在，且想引用其他路径的图片素材或阵亡素材，请以[character,[]]的形式写入lib.character.characterSubstitute[name]中，第二个数组填入形式同lib.character[4]的书写形式
+	 *
+	 * @param { string | string }
+	 */
+	changeSkin(skill, character) {
+		if (!skill || !character) {
+			console.log('error: no sourceSkill or character to changeSkin', get.translation(this));
+			return;
+		}
+		for (const i of ['name', 'name1', 'name2']) {
+			if (i == 'name1' && this.name === this.name1) continue;
+			const list = lib.characterSubstitute[this[i]];
+			if (this[i] && list) {
+				if ((get.character(this[i], 3) || []).includes(skill)) {
+					const name = (i == 'name2' ? 'name2' : 'name');
+					if (this.skin[name] != character) {
+						const origin = this.skin[name];
+						game.broadcastAll((player, name, character, list, origin) => {
+							player.tempname.remove(origin);
+							player.tempname.add(character);
+							player.skin[name] = character;
+							const goon = (!lib.character[character]);
+							if (goon) lib.character[character] = ['', '', 0, [], (list.find(i => i[0] == character) || [character, []])[1]];
+							player.smoothAvatar(name == 'name2');
+							player.node['avatar' + name.slice(4)].setBackground(character, 'character');
+							player.node['avatar' + name.slice(4)].show();
+							if (goon) delete lib.character[character];
+						}, this, name, character, list, origin);
+						game.addVideo('changeSkin', this, {
+							from: origin,
+							to: character,
+							name: name,
+							list: list,
+							avatar2: name == 'name2',
+						});
+					}
+				}
+			}
+		}
+	}
+	changeSkinByName(character, index){
+		const name = (index == 2 ? 'name2' : 'name');
+		const list = lib.characterSubstitute[this[name]];
+		if (list && lib.characterSubstitute[this[name]]) {
+			const origin = this.skin[name];
+			game.broadcastAll((player, name, character, list, origin) => {
+				player.tempname.remove(origin);
+				player.tempname.add(character);
+				player.skin[name] = character;
+				const goon = (!lib.character[character]);
+				if (goon) lib.character[character] = ['', '', 0, [], (list.find(i => i[0] == character) || [character, []])[1]];
+				player.smoothAvatar(name == 'name2');
+				player.node['avatar' + name.slice(4)].setBackground(character, 'character');
+				player.node['avatar' + name.slice(4)].show();
+				if (goon) delete lib.character[character];
+			}, this, name, character, list, origin);
+			game.addVideo('changeSkin', this, {
+				from: origin,
+				to: character,
+				name: name,
+				list: list,
+				avatar2: name == 'name2',
+			});
+		}
 	}
 	initOL(name, character) {
 		this.node.avatar.setBackground(character, 'character');
@@ -2344,6 +2477,69 @@ export class Player extends HTMLDivElement {
 		this.firstChild.innerHTML = str;
 		return this;
 	}
+	reinit2(newPairs) {
+		const player = this;
+		game.broadcast((player, newPairs) => {
+			player.reinit2(newPairs);
+		}, this, newPairs);
+		const rawPairs = [this.name1];
+		if (this.name2 && lib.character[this.name2]) rawPairs.push(this.name2);
+		//单将变单将 & 双将变双将
+		if (rawPairs.length == newPairs.length){
+			for (let i = 0; i<Math.min(2, rawPairs.length); i++){
+				let rawName = rawPairs[i], newName = newPairs[i];
+				if (rawName != newName && lib.character[rawName] && lib.character[newName]) {
+					player.reinit(rawName, newName, null, true);
+				}
+			}
+		}
+		//单将变双将
+		else if (rawPairs.length == 1 && newPairs.length == 2){
+			player.name1 = newPairs[0];
+			player.name2 = newPairs[1];
+			player.$reinit12(newPairs);
+		}
+		//双将变单将
+		else if (rawPairs.length == 2 && newPairs.length == 1){
+			player.name1 = newPairs[0];
+			delete player.name2;
+			player.$reinit21(newPairs);
+		}
+		//修改性别
+		if (!player.isUnseen(1)) {
+			player.name = player.name1;
+			player.sex = get.character(player.name1)[0];
+		}
+		else if (!player.isUnseen(2)) {
+			player.name = player.name2;
+			player.sex = get.character(player.name2)[0];
+		}
+	}
+	$reinit12(newPairs) {
+		const player = this;
+		player.node.avatar.setBackground(newPairs[0], 'character');
+		player.node.name.innerHTML = get.slimName(newPairs[0]);
+		player.name2 = newPairs[1];
+		player.classList.add('fullskin2');
+		player.node.avatar2.classList.remove('hidden');
+		player.node.avatar2.setBackground(newPairs[1],'character');
+		player.node.name2.innerHTML = get.slimName(newPairs[1]);
+		if (player == game.me && ui.fakeme) {
+			ui.fakeme.style.backgroundImage = player.node.avatar.style.backgroundImage;
+		}
+	}
+	$reinit21(newPairs) {
+		const player = this, name = newPairs[0];
+		player.smoothAvatar(false);
+		player.node.avatar.setBackground(name,'character');
+		player.node.name.innerHTML = get.slimName(name);
+		player.classList.remove('fullskin2');
+		player.node.avatar2.classList.add('hidden');
+		player.node.name2.innerHTML = '';
+		if (player==game.me&&ui.fakeme) {
+			ui.fakeme.style.backgroundImage=player.node.avatar.style.backgroundImage;
+		}
+	}
 	reinit(from, to, maxHp, online) {
 		var info1 = lib.character[from];
 		var info2 = lib.character[to];
@@ -2354,78 +2550,79 @@ export class Player extends HTMLDivElement {
 		}
 		if (this.name2 == from) {
 			this.name2 = to;
+			this.skin.name2 = to;
 		}
 		else if (this.name == from || this.name1 == from) {
 			if (this.name1 == from) {
 				this.name1 = to;
+				this.skin.name = to;
 			}
 			if (!this.isUnseen(1)) {
 				this.name = to;
+				if (this.skin.name != to) this.skin.name = to;
 				this.sex = info2[0];
 			}
 		}
 		else {
 			return this;
 		}
-		if (online) {
-			return;
-		}
-		for (var i = 0; i < info1[3].length; i++) {
-			this.removeSkill(info1[3][i]);
-		}
-		for (var i = 0; i < info2[3].length; i++) {
-			var info = get.info(info2[3][i]);
-			if (info && info.zhuSkill && !this.isZhu2()) continue;
-			this.addSkill(info2[3][i]);
-		}
-		if (Array.isArray(maxHp)) {
-			this.maxHp = maxHp[1];
-			this.hp = maxHp[0];
-		}
-		else {
-			var num;
-			if (maxHp === false) {
-				num = 0;
+		if (!online) {
+			for (var i = 0; i < info1[3].length; i++) {
+				this.removeSkill(info1[3][i]);
+			}
+			for (var i = 0; i < info2[3].length; i++) {
+				var info = get.info(info2[3][i]);
+				if (info && info.zhuSkill && !this.isZhu2()) continue;
+				this.addSkill(info2[3][i]);
+			}
+			if (Array.isArray(maxHp)) {
+				this.maxHp = maxHp[1];
+				this.hp = maxHp[0];
 			}
 			else {
-				if (typeof maxHp != 'number') {
-					maxHp = get.infoMaxHp(info2[2]);
+				var num;
+				if (maxHp === false) {
+					num = 0;
 				}
-				num = maxHp - get.infoMaxHp(info1[2]);
-			}
-			if (typeof this.singleHp == 'boolean') {
-				if (num % 2 != 0) {
-					if (this.singleHp) {
-						this.maxHp += (num + 1) / 2;
-						this.singleHp = false;
+				else {
+					if (typeof maxHp != 'number') {
+						maxHp = get.infoMaxHp(info2[2]);
+					}
+					num = maxHp - get.infoMaxHp(info1[2]);
+				}
+				if (typeof this.singleHp == 'boolean') {
+					if (num % 2 != 0) {
+						if (this.singleHp) {
+							this.maxHp += (num + 1) / 2;
+							this.singleHp = false;
+						}
+						else {
+							this.maxHp += (num - 1) / 2;
+							this.singleHp = true;
+							if (!game.online) {
+								this.doubleDraw();
+							}
+						}
 					}
 					else {
-						this.maxHp += (num - 1) / 2;
-						this.singleHp = true;
-						if (!game.online) {
-							this.doubleDraw();
-						}
+						this.maxHp += num / 2;
 					}
 				}
 				else {
-					this.maxHp += num / 2;
+					this.maxHp += num;
 				}
 			}
-			else {
-				this.maxHp += num;
-			}
+			game.broadcast(function (player, from, to, skills) {
+				player.reinit(from, to, null, true);
+				player.applySkills(skills);
+			}, this, from, to, get.skillState(this));
 		}
-		game.broadcast(function (player, from, to, skills) {
-			player.reinit(from, to, null, true);
-			player.applySkills(skills);
-		}, this, from, to, get.skillState(this));
 		game.addVideo('reinit3', this, {
 			from: from,
 			to: to,
 			hp: this.maxHp,
 			avatar2: this.name2 == to
 		});
-
 		this.$reinit(from, to, maxHp, online);
 		this.update();
 	}
@@ -2454,6 +2651,7 @@ export class Player extends HTMLDivElement {
 		delete this.name;
 		delete this.name1;
 		delete this.tempname;
+		delete this.skin;
 		delete this.sex;
 		delete this.group;
 		delete this.hp;
@@ -2511,6 +2709,8 @@ export class Player extends HTMLDivElement {
 		this.node.hp.show();
 		this.classList.remove('unseen');
 		this.classList.remove('unseen2');
+		this.classList.remove('unseen_show');
+		this.classList.remove('unseen2_show');
 
 		this.node.identity.style.backgroundColor = '';
 		this.node.intro.innerHTML = '';
@@ -2949,9 +3149,8 @@ export class Player extends HTMLDivElement {
 			numh = arguments[0];
 		}
 		if (numh >= 10) {
-			numh = numh.toString();
 			this.node.count.dataset.condition = 'low';
-			this.node.count.innerHTML = numh[0] + '<br>' + numh[1];
+			this.node.count.innerHTML = Array.from(numh.toString()).join('<br>');
 		}
 		else {
 			if (numh > 5) {
@@ -3775,7 +3974,7 @@ export class Player extends HTMLDivElement {
 		return next;
 	}
 	phaseUse() {
-		var next = game.createEvent('phaseUse');
+		var next = game.createEvent('phaseUse', false);
 		next.player = this;
 		next.setContent('phaseUse');
 		return next;
@@ -4157,7 +4356,8 @@ export class Player extends HTMLDivElement {
 		var next = game.createEvent('chooseButton');
 		for (var i = 0; i < arguments.length; i++) {
 			if (typeof arguments[i] == 'boolean') {
-				next.forced = arguments[i];
+				if (!next.forced) next.forced = arguments[i];
+				else next.complexSelect = arguments[i];
 			}
 			else if (get.itemtype(arguments[i]) == 'dialog') {
 				next.dialog = arguments[i];
@@ -4183,6 +4383,7 @@ export class Player extends HTMLDivElement {
 		if (next.filterButton == undefined) next.filterButton = lib.filter.filterButton;
 		if (next.selectButton == undefined) next.selectButton = [1, 1];
 		if (next.ai == undefined) next.ai = function () { return 1; };
+		if (next.complexSelect !== false) next.complexSelect = true;
 		next.setContent('chooseButton');
 		next._args = Array.from(arguments);
 		next.forceDie = true;
@@ -4668,7 +4869,10 @@ export class Player extends HTMLDivElement {
 		}
 		if (get.itemtype(cards) == 'card') next.cards = [cards];
 		else if (get.itemtype(cards) == 'cards') next.cards = cards.slice(0);
-		else _status.event.next.remove(next);
+		else {
+			_status.event.next.remove(next);
+			next.resolve();
+		}
 		next.setContent('showCards');
 		next._args = Array.from(arguments);
 		return next;
@@ -4911,7 +5115,10 @@ export class Player extends HTMLDivElement {
 				this.ai.tempIgnore.add(next.targets[i]);
 			}
 		}
-		if (typeof this.logAi == 'function' && !next.noai && !get.info(next.card).noai) {
+		if (typeof this.logAi == 'function' && !next.noai && !get.info(next.card).noai && !this.hasSkillTag(this, true, {
+			card: next.card,
+			targets: next.targets,
+		}, true)) {
 			var postAi = get.info(next.card).postAi;
 			if (postAi && postAi(next.targets)) {
 				next.postAi = true;
@@ -5025,7 +5232,10 @@ export class Player extends HTMLDivElement {
 			}
 		}
 		if (next.num == undefined) next.num = 1;
-		if (next.num <= 0) _status.event.next.remove(next);
+		if (next.num <= 0) {
+			_status.event.next.remove(next);
+			next.resolve();
+		}
 		next.setContent('draw');
 		if (lib.config.mode == 'stone' && _status.mode == 'deck' &&
 			next.drawDeck == undefined && !next.player.isMin() && next.num > 1) {
@@ -5109,7 +5319,10 @@ export class Player extends HTMLDivElement {
 				next.notBySelf = true;
 			}
 		}
-		if (next.cards == undefined) _status.event.next.remove(next);
+		if (next.cards == undefined) {
+			_status.event.next.remove(next);
+			next.resolve();
+		}
 		next.setContent('discard');
 		return next;
 	}
@@ -5143,7 +5356,10 @@ export class Player extends HTMLDivElement {
 				next.blank = true;
 			}
 		}
-		if (next.cards == undefined) _status.event.next.remove(next);
+		if (next.cards == undefined) {
+			_status.event.next.remove(next);
+			next.resolve();
+		}
 		next.setContent('loseToDiscardpile');
 		return next;
 	}
@@ -5523,6 +5739,7 @@ export class Player extends HTMLDivElement {
 		}
 		if (!next.cards || !next.cards.length) {
 			_status.event.next.remove(next);
+			next.resolve();
 		}
 		else {
 			if (next.position == undefined) next.position = ui.discardPile;
@@ -5640,7 +5857,10 @@ export class Player extends HTMLDivElement {
 		if (next.cards == undefined && !nocard) next.cards = event.cards;
 		if (next.source == undefined && !nosource) next.source = event.customSource || event.player;
 		if (next.num == undefined) next.num = (event.baseDamage || 1) + (event.extraDamage || 0);
-		if (next.num <= 0) _status.event.next.remove(next);
+		if (next.num <= 0) {
+			_status.event.next.remove(next);
+			next.resolve();
+		}
 		next.setContent('recover');
 		return next;
 	}
@@ -7189,6 +7409,27 @@ export class Player extends HTMLDivElement {
 		}
 		return skill;
 	}
+	addSkills(skill){
+		if(!skill) return;
+		return this.changeSkills(Array.isArray(skill) ? skill : [skill], []);
+	}
+	removeSkills(skill){
+		if(!skill) return;
+		return this.changeSkills([], Array.isArray(skill) ? skill : [skill]);
+	}
+	changeSkills(addSkill = [], removeSkill = []){
+		if(!Array.isArray(addSkill) || !Array.isArray(removeSkill)){
+			console.warn(`警告：Player[${this.name}].changeSkills的参数错误，应当为数组形式。`);
+			return;
+		}
+		const next = game.createEvent('changeSkills', false);
+		next.player = this;
+		next.forceDie = true;
+		next.addSkill = addSkill.slice(0).unique();
+		next.removeSkill = removeSkill.slice(0).unique();
+		next.setContents('changeSkills');
+		return next;
+	}
 	addSkill(skill, checkConflict, nobroadcast, addToSkills) {
 		if (Array.isArray(skill)) {
 			_status.event.clearStepCache();
@@ -7259,35 +7500,80 @@ export class Player extends HTMLDivElement {
 		if (checkConflict) this.checkConflict();
 		return skill;
 	}
-	addAdditionalSkill(skill, skills, keep) {
-		if (this.additionalSkills[skill]) {
-			if (keep) {
-				if (typeof this.additionalSkills[skill] == 'string') {
-					this.additionalSkills[skill] = [this.additionalSkills[skill]];
+	addAdditionalSkills(skill, skillsToAdd, keep) {
+		if (typeof skillsToAdd == 'string') skillsToAdd = [skillsToAdd];
+		if(!Array.isArray(skillsToAdd)){
+			console.warn(`警告：Player[${this.name}].addAdditionalSkills的参数错误，应当为技能字符串或数组:`,skillsToAdd);
+		}
+		const skillsToRemove = [];
+		//如果不需要保留原本的additionalSkills，则判断要移除的技能，并移除这些技能
+		if (!keep) {
+			skillsToRemove.addArray(this.getRemovableAdditionalSkills(skill));
+		}
+		//创建对应的addSkills的事件
+		return this.changeSkills(skillsToAdd, skillsToRemove).set('$handle', function(player, skillsToAdd, skillsToRemove){
+			//先失去先前获得的衍生技能
+			if (skillsToRemove.length>0) {
+				game.log(player, '失去了技能', ...skillsToRemove.map(i => {
+					return '#g【' + get.translation(i) + '】';
+				}));
+				player.removeSkill(skillsToRemove);
+			}
+			//再获得新的衍生技能
+			if (skillsToAdd.length>0) {
+				game.log(player, '获得了技能', ...skillsToAdd.map(i => {
+					return '#g【' + get.translation(i) + '】';
+				}));
+				if (!Array.isArray(player.additionalSkills[skill])) player.additionalSkills[skill] = [];
+				for (var i = 0; i < skillsToAdd.length; i++) {
+					player.addSkill(skillsToAdd[i], null, true, true);
+					player.additionalSkills[skill].push(skillsToAdd[i]);
 				}
+				player.checkConflict();
 			}
-			else {
-				this.removeAdditionalSkill(skill);
-				this.additionalSkills[skill] = [];
-			}
+			_status.event.clearStepCache();
+		});
+	}
+	addAdditionalSkill(skill, skillsToAdd, keep) {
+		if (typeof skillsToAdd == 'string') skillsToAdd = [skillsToAdd];
+		if(!Array.isArray(skillsToAdd)){
+			console.warn(`警告：Player[${this.name}].addAdditionalSkill的参数错误，应当为技能字符串或数组:`,skillsToAdd);
 		}
-		else {
-			this.additionalSkills[skill] = [];
+		const skillsToRemove = [];
+		//如果不需要保留原本的additionalSkills，则判断要移除的技能，并移除这些技能
+		if (!keep) {
+			skillsToRemove.addArray(this.getRemovableAdditionalSkills(skill));
 		}
-		if (typeof skills == 'string') {
-			skills = [skills];
+		this.removeSkill(skillsToRemove);
+		//然后处理获得技能的操作
+		if (!Array.isArray(this.additionalSkills[skill])) this.additionalSkills[skill] = [];
+		for (var i = 0; i < skillsToAdd.length; i++) {
+			this.addSkill(skillsToAdd[i], null, true, true);
+			this.additionalSkills[skill].push(skillsToAdd[i]);
 		}
-		for (var i = 0; i < skills.length; i++) {
-			this.addSkill(skills[i], null, true, true);
-			//this.skills.remove(skills[i]);
-			this.additionalSkills[skill].push(skills[i]);
-		}
+
 		this.checkConflict();
 		_status.event.clearStepCache();
 		return this;
 	}
-	removeAdditionalSkill(skill, target) {
-		const player = this;
+	$removeAdditionalSkills(skill, target){
+		const additionalSkills = this.additionalSkills[skill];
+		if (Array.isArray(additionalSkills)) {
+			if (typeof target === 'string') {
+				if (additionalSkills.includes(target)) {
+					additionalSkills.remove(target);
+					if (!additionalSkills.length) {
+						delete this.additionalSkills[skill];
+					}
+				}
+			}
+			else {
+				delete this.additionalSkills[skill];
+			}
+		}
+	}
+	getRemovableAdditionalSkills(skill, target){
+		const player = this, removableSkills = [];
 		if (this.additionalSkills[skill]) {
 			const additionalSkills = this.additionalSkills[skill];
 			const hasAnotherSKill = function (skillkey, skill) {
@@ -7299,23 +7585,37 @@ export class Player extends HTMLDivElement {
 			};
 			if (Array.isArray(additionalSkills) && typeof target == 'string') {
 				if (additionalSkills.includes(target)) {
-					additionalSkills.remove(target);
-					if (!hasAnotherSKill(skill, target)) this.removeSkill(target);
+					removableSkills.push(target);
 				}
 			}
 			else {
-				delete this.additionalSkills[skill];
-				if (typeof additionalSkills == 'string') {
-					if (!hasAnotherSKill(skill, additionalSkills)) this.removeSkill(additionalSkills);
-				}
-				else if (Array.isArray(additionalSkills)) {
-					const skillsToRemove = additionalSkills.filter(target => !hasAnotherSKill(skill, target));
-					this.removeSkill(skillsToRemove);
+				if (Array.isArray(additionalSkills)) {
+					removableSkills.addArray(additionalSkills.filter(target => !hasAnotherSKill(skill, target)));
 				}
 			}
 		}
+		return removableSkills;
+	}
+	removeAdditionalSkill(skill, target) {
+		const player = this, skills = this.getRemovableAdditionalSkills(skill, target);
+		if(skills.length){
+			player.removeSkill(skills);
+		}
+		player.$removeAdditionalSkills(skill, target);
 		_status.event.clearStepCache();
 		return this;
+	}
+	removeAdditionalSkills(skill, target) {
+		const player = this, skills = this.getRemovableAdditionalSkills(skill, target);
+		return player.changeSkills([], skills).set('$handle', function(player, addSkills, removeSkills){
+			if(removeSkills.length>0){
+				game.log(player, '失去了技能', ...removeSkills.map(i => {
+					return '#g【' + get.translation(i) + '】';
+				}));
+				player.removeSkill(removeSkills);
+			}
+			player.$removeAdditionalSkills(skill, target);
+		});
 	}
 	awakenSkill(skill, nounmark) {
 		if (!nounmark) this.unmarkSkill(skill);
@@ -7549,12 +7849,43 @@ export class Player extends HTMLDivElement {
 				}
 				this.removeSkillTrigger(skill);
 				if (!info.keepSkill) {
-					this.removeAdditionalSkill(skill);
+					this.removeAdditionalSkills(skill);
 				}
 			}
 			this.enableSkill(skill + '_awake');
 		}
 		return skill;
+	}
+	addTempSkills(skillsToAdd, expire){
+		//请注意，该方法的底层实现并非tempSkill，而是additionalSkills和player.when！
+		if (typeof skillsToAdd == 'string') skillsToAdd = [skillsToAdd];
+		if(!Array.isArray(skillsToAdd) || !skillsToAdd.length){
+			console.warn(`警告：Player[${this.name}].addAdditionalSkills的参数错误，应当为技能字符串或非空数组:`,skillsToAdd);
+		}
+		//确定技能要被移除的时机
+		if (!expire) expire = { global: ['phaseAfter', 'phaseBeforeStart'] };
+		else if (typeof expire == 'string' || Array.isArray(expire)) expire = { global: expire };
+		return this.changeSkills(skillsToAdd, []).set('$handle', function(player, addSkills, removeSkills){
+			if(addSkills.length){
+				game.log(player, '获得了技能', ...addSkills.map(i => {
+					return '#g【' + get.translation(i) + '】';
+				}));
+				let skillName;
+				//生成该TempSkills对应的ID
+				do {
+					skillName = 'player_tempSkills_' + Math.random().toString(36).slice(-8);
+				} while (player.additionalSkills[skillName] != null);
+				player.addAdditionalSkill(skillName, skillsToAdd);
+				player.when(expire).assign({
+					firstDo: true,
+					priority: Infinity,
+				}).vars({
+					skillName
+				}).then(() => {
+					player.removeAdditionalSkills(skillName);
+				});
+			}
+		});
 	}
 	addTempSkill(skill, expire, checkConflict) {
 		if (Array.isArray(skill)) {
@@ -7630,7 +7961,7 @@ export class Player extends HTMLDivElement {
 				this.removeAdditionalSkill(i);
 			}
 		}
-		this[all ? 'removeSkill' : 'removeSkillLog'](list);
+		this[all ? 'removeSkill' : 'removeSkills'](list);
 		this.checkConflict();
 		this.checkMarks();
 		return list;
@@ -8493,10 +8824,10 @@ export class Player extends HTMLDivElement {
 		if (this.hasSkillTag('respondSha', true, respond ? 'respond' : 'use', true)) return true;
 		return this.hasUsableCard('sha');
 	}
-	hasShan() {
+	hasShan(respond) {
 		if (this.countCards('hs', 'shan')) return true;
 		if (this.countCards('hs', 'hufu')) return true;
-		if (this.hasSkillTag('respondShan', true, null, true)) return true;
+		if (this.hasSkillTag('respondShan', true, respond ? 'respond' : 'use', true)) return true;
 		return this.hasUsableCard('shan');
 	}
 	mayHaveSha(viewer, type, ignore, rvt) {
@@ -8545,7 +8876,7 @@ export class Player extends HTMLDivElement {
 	}
 	mayHaveShan(viewer, type, ignore, rvt) {
 		/**
-		 * type: skill tag type 'use', 'respond'
+		 * type: skill tag type 'use', 'respond' or object
 		 * ignore: ignore cards, ui.selected.cards added
 		 * rvt: return value type 'count', 'odds', 'bool'(default)
 		 */

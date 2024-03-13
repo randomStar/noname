@@ -25,7 +25,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 			ddd_liuhong:['male','qun',4,['dddshixing','ddddanggu','dddfuzong'],['zhu']],
 			ddd_xiahouxuan:['male','wei',3,['dddlanghuai','dddxuanlun']],
 			ddd_zhangkai:['male','qun','3/4',['dddjiexing','dddbailei']],
-			ddd_liangxi:['male','wei',3,['dddtongyu']],
+			ddd_liangxi:['male','wei',4,['dddtongyu']],
 			ddd_wangkanglvkai:['male','shu',4,['dddbingjian']],
 			// ddd_sunliang:['male','wu',3,['ddddiedang','dddanliu','dddguiying'],['zhu']],
 			ddd_lie:['female','wu',3,['dddyeshen','dddqiaoduan']],
@@ -2031,7 +2031,13 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 							if(trigger.targets&&trigger.targets.length){
 								let result=yield player.chooseControl(['额外结算','摸一张牌']).set('prompt','实荐：请选择一项').set('prompt2',`令${get.translation(trigger.card)}额外结算一次，或摸一张牌`).set('ai',()=>{
 									return get.event('choice');
-								}).set('choice',['basic','trick'].includes(get.type(trigger.card))&&trigger.targets.map(i=>get.effect(i,trigger.card,target,player)).reduce((p,c)=>p+c,0)>=5?0:1);
+								}).set('choice',function(){
+									if(trigger.card.name==='tiesuo'||!['basic','trick'].includes(get.type(trigger.card))) return 1;
+									if(trigger.targets.reduce((p,c)=>{
+										return p+get.effect(c,trigger.card,target,_status.event.player);
+									},0)>=get.effect(player,{name:'draw'},player,_status.event.player)) return 0;
+									return 1;
+								}());
 								if(result.index==0){
 									trigger.getParent().effectCount++;
 									game.log(player,'令',trigger.card,'额外结算一次');
@@ -2385,8 +2391,8 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 							else wuxie=true;
 						}
 					}
-					if(shan&&event.filterCard({name:'shan'},player,event)) return true;
-					if(wuxie&&event.filterCard({name:'wuxie'},player,event)) return true;
+					if(shan&&event.filterCard(get.autoViewAs({name:'shan'},'unsure'),player,event)) return true;
+					if(wuxie&&event.filterCard(get.autoViewAs({name:'wuxie'},'unsure'),player,event)) return true;
 					return false;
 				},
 				hiddenCard (player,name){
@@ -2486,7 +2492,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					if(result.bool){
 						var target=trigger.player,cards=result.cards;
 						player.logSkill('dddqiahua',target);
-						target.addTempSkill('dddxunxun');
+						target.addTempSkills('dddxunxun');
 						player.addShownCards(cards,'visible_dddxianglang');
 						game.log(player,'选择了',cards,'作为“明”');
 						player.showCards(cards,get.translation(player)+'对'+get.translation(target)+'发动了【恰化】');
@@ -2812,8 +2818,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 								});
 							}
 							else{
-								game.log(player,'失去了技能','#g【齐策】');
-								player.removeSkill('dddqice');
+								player.removeSkills('dddqice');
 								event.finish();
 							}
 							'step 1'
@@ -3165,8 +3170,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					else{
 						if(!targets.includes(player)) player.loseMaxHp();
 						if(targets.length==1){
-							player.removeSkill('dddxiaheng');
-							game.log(player,'失去了技能','#g【侠横】');
+							player.removeSkills('dddxiaheng');
 						}
 					}
 					'step 5'
@@ -3272,8 +3276,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					}).setContent('gaincardMultiple');
 					if(!lose) event.finish();
 					'step 5'
-					player.removeSkill('dddfengzheng');
-					game.log(player,'失去了技能','#g【丰政】');
+					player.removeSkills('dddfengzheng');
 				},
 				subSkill:{
 					global:{
@@ -4435,8 +4438,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 						// 	return event.source&&event.source.isIn()&&event.source.getEquips(1).length>0;
 						// },
 						content(){
-							player.removeSkill('dddxiaoxing');
-							game.log(player,'失去了技能','#g【枭行】');
+							player.removeSkills('dddxiaoxing');
 						},
 						content_old(){
 							'step 0'
@@ -4448,8 +4450,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 							if(result.bool){
 								trigger.source.logSkill('dddxiaoxing',player);
 								trigger.source.disableEquip(1);
-								player.removeSkill('dddxiaoxing');
-								game.log(player,'失去了技能','#g【枭行】');
+								player.removeSkills('dddxiaoxing');
 							}
 						}
 					}
@@ -4541,8 +4542,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 						player.gain(cards,'log');
 					}
 					'step 5'
-					player.removeSkill('dddlangzhi');
-					game.log(player,'失去了技能','#g【狼志】');
+					player.removeSkills('dddlangzhi');
 					event.finish();
 					'step 6'
 					game.broadcastAll('closeDialog',event.videoId);
@@ -4610,7 +4610,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					else event.finish();
 					'step 2'
 					var skill=result.control;
-					player.addSkillLog(skill);
+					player.addSkills(skill);
 				},
 				content_old(){
 					'step 0'
@@ -4648,14 +4648,11 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 							player.draw(3);
 						}
 						else event.finish();
-						for(var i of skills){
-							player.addSkillLog(i);
-						}
+						player.addSkills(skills);
 					}
 					else event.finish();
 					'step 2'
-					player.removeSkill('dddfuyi');
-					game.log(player,'失去了技能','#g【附义】');
+					player.removeSkills('dddfuyi');
 				},
 				subSkill:{
 					sha:{
@@ -4824,17 +4821,17 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 							cardEnabled(card,player){
 								if(!player.storage['dddlianer_ceiling']) return;
 								var num=get.number(card);
-								if(typeof num!='number'||player.storage['dddlianer_ceiling']<=num) return false;
+								if(num!='unsure'&&(typeof num!='number'||player.storage['dddlianer_ceiling']<=num)) return false;
 							},
 							cardRespondable(card,player){
 								if(!player.storage['dddlianer_ceiling']) return;
 								var num=get.number(card);
-								if(typeof num!='number'||player.storage['dddlianer_ceiling']<=num) return false;
+								if(num!='unsure'&&(typeof num!='number'||player.storage['dddlianer_ceiling']<=num)) return false;
 							},
 							cardSavable(card,player){
 								if(!player.storage['dddlianer_ceiling']) return;
 								var num=get.number(card);
-								if(typeof num!='number'||player.storage['dddlianer_ceiling']<=num) return false;
+								if(num!='unsure'&&(typeof num!='number'||player.storage['dddlianer_ceiling']<=num)) return false;
 							},
 						}
 					}
@@ -5290,8 +5287,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					else event.finish();
 					'step 3'
 					if(target.isIn()){event.finish(); return};
-					player.removeSkill('dddbailei');
-					game.log(player,'失去了技能','#g【拜泪】');
+					player.removeSkills('dddbailei');
 				},
 				subSkill:{
 					animate:{
@@ -5469,7 +5465,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 			ddd_luoxian:'罗宪',
 			dddshilie:'示烈',
 			visible_dddshilie:'明',
-			dddshilie_info:'每回合限一次。当你需要使用一张【杀】或【闪】时，你可以明置任意点数之和不小于X的手牌，视为你使用之。若本次明置的牌点数等于X，你摸等同于本次明置的牌数的牌（X为你于当前回合角色的体力值之和）。',
+			dddshilie_info:'每回合限一次。当你需要使用一张【杀】或【闪】时，你可以明置任意点数之和不小于X的手牌，视为你使用之。若本次明置的牌点数等于X，你摸等同于本次明置的牌数的牌（X为你与当前回合角色的体力值之和）。',
 			ddd_lie:'李娥',
 			dddyeshen:'冶身',
 			dddyeshen_info:'一名角色的结束阶段，你可以亮出牌堆底三张牌，令其将其中一张黑色牌当做最大目标数为牌名字数的【铁索连环】使用或重铸，其余牌置于牌堆顶，然后此技能亮出牌数-1；若减至零张或其中没有黑色牌，你复原此技能并对自己造成1点火焰伤害。',

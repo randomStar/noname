@@ -18,15 +18,19 @@ export class Get extends Uninstantable {
 	 *
 	 * > 其他后续或许会增加，但`IE`永无可能
 	 *
-	 * @returns {["firefox" | "chrome" | "safari" | "other", number]}
+	 * @returns {["firefox" | "chrome" | "safari" | "other", number, number, number]}
 	 */
 	static coreInfo() {
-		const regex = /(firefox|chrome|safari)\/([\d.]+)/;
-		let result;
-		if (!(result = userAgent.match(regex))) return ["other", NaN];
-		if (result[1] != "safari") return [result[1], parseInt(result[2])];
-		result = userAgent.match(/version\/([\d.]+).*safari/);
-		return ["safari", parseInt(result[1])];
+		const regex = /(firefox|chrome|safari)\/(\d+(?:\.\d+)+)/
+		let result
+		if (!(result = userAgent.match(regex))) return ["other", NaN, NaN, NaN]
+		if (result[1] != "safari") {
+			const [major, minor, patch] = result[2].split(".")
+			return [result[1], parseInt(major), parseInt(minor), parseInt(patch)]
+		}
+		result = userAgent.match(/version\/(\d+(?:\.\d+)+).*safari/)
+		const [major, minor, patch] = result[1].split(".")
+		return ["safari", parseInt(major), parseInt(minor), parseInt(patch)]
 	}
 	/**
 	 * 返回 VCard[] 形式的所有牌，用于印卡将遍历
@@ -277,7 +281,7 @@ export class Get extends Uninstantable {
 		if (info.zhuSkill) list.add('主公技');
 		if (info.limited) list.add('限定技');
 		if (info.juexingji) list.add('觉醒技');
-		if (info.zhuanhuanji) list.add('转换技');
+		if (get.is.zhuanhuanji(skill, player)) list.add('转换技');
 		if (info.hiddenSkill) list.add('隐匿技');
 		if (info.clanSkill) list.add('宗族技');
 		if (info.groupSkill) list.add('势力技');
@@ -1787,7 +1791,7 @@ export class Get extends Uninstantable {
 					return game.checkMod(card, owner, game.checkMod(card, card.suit, 'suit', owner), 'cardsuit', owner);
 				}
 			}
-			if (lib.suits.includes(card.suit)) return card.suit;
+			if (card.suit === 'unsure' || lib.suits.includes(card.suit)) return card.suit;
 			return 'none';
 		}
 	}
@@ -1806,7 +1810,7 @@ export class Get extends Uninstantable {
 			}
 			return color;
 		}
-		else if (Object.keys(lib.color).includes(card.color)) {
+		else if (card.color === 'unsure' || Object.keys(lib.color).includes(card.color)) {
 			return card.color;
 		}
 		else if (Array.isArray(card.cards) && !lib.suit.includes(card.suit)) {
@@ -1831,7 +1835,8 @@ export class Get extends Uninstantable {
 		var number = null;
 		if ('number' in card) {
 			number = card.number;
-			if (typeof number != 'number') number = null;
+			if (number === 'unsure') return number;
+			else if (typeof number != 'number') number = null;
 		}
 		else {
 			if (card.cards && card.cards.length == 1) number = get.number(card.cards[0], false);
@@ -2222,6 +2227,12 @@ export class Get extends Uninstantable {
 		}
 		return '';
 	}
+	static menuZoom(){
+		if(game.menuZoom === undefined || game.menuZoom === null){
+			return game.documentZoom;
+		}
+		return game.menuZoom;
+	}
 	static strNumber(num) {
 		switch (num) {
 			case 1: return 'A';
@@ -2234,8 +2245,8 @@ export class Get extends Uninstantable {
 	static cnNumber(num, ordinal) {
 		if (isNaN(num)) return '';
 		let numStr = num.toString();
-		if (num === 'Infinity') return '∞';
-		if (num === '-Infinity') return '-∞';
+		if (numStr === 'Infinity') return '∞';
+		if (numStr === '-Infinity') return '-∞';
 		if (!/^\d+$/.test(numStr)) return num;
 
 		const chars = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
@@ -2247,7 +2258,11 @@ export class Get extends Uninstantable {
 		}
 
 		numStr = numStr.replace(/(?=(\d{4})+$)/g, ',').split(',').filter(Boolean);
-		const handleZero = str => str.replace(/零{2,}/g, '零').replace(/(?<=.+)零+$/g, '');
+		const handleZero = str => {
+			let result = str.replace(/零{2,}/g, '零');
+			if (result.length > 1) result = result.replace(/零+$/g, '');
+			return result;
+		};
 		const _transform = str => {
 			if (str === '2' && !ordinal) return '两';
 			let result = '';
@@ -4648,6 +4663,17 @@ export class Get extends Uninstantable {
 		var eff = get.effect(target, { name: name }, player, viewer);
 		if (eff > 0 && target.hujia > 0) return eff / 1.3;
 		return eff;
+	}
+	/**
+	 * 
+	 * @param {any} source 如果参数是function，执行此函数并返回结果，传参为此方法剩余的参数。如果参数不是function，直接返回结果。
+	 * @returns 返回的结果
+	 */
+	static dynamicVariable(source){
+		if(typeof source == 'function'){
+			return source.call(null,...(Array.from(arguments).slice(1)));
+		}
+		return source;
 	}
 	static recoverEffect(target, player, viewer) {
 		if (target.hp == target.maxHp) return 0;

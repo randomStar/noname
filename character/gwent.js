@@ -803,7 +803,8 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					player.storage.gwjingtian--;
 					player.updateMark('gwjingtian',true);
 					player.logSkill('gwjingtian');
-					if(_status.imchoosing){
+					if (_status.imchoosing) {
+						delete _status.event._buttonChoice;
 						delete _status.event._cardChoice;
 						delete _status.event._targetChoice;
 						game.check();
@@ -1367,7 +1368,7 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 			yangfan:{
 				trigger:{player:'useCard'},
 				forced:true,
-				filter:(event,player)=>get.type(event.card)!='equip'&&player.hasCard(card=>get.color(card)==get.color(trigger.card)&&player.canRecast(card),'h'),
+				filter:(event,player)=>get.type(event.card)!='equip'&&player.hasCard(card=>get.color(card)==get.color(event.card)&&player.canRecast(card),'h'),
 				content(){
 					'step 0'
 					var cards=player.getCards('h',card=>get.suit(card)==get.suit(trigger.card)&&player.canRecast(card));
@@ -2774,7 +2775,10 @@ game.import('character',function(lib,game,ui,get,ai,_status){
 					order:7,
 					result:{
 						target(player,target){
-							if(player.getEquip('tengjia')||player.getEquip('bagua')) return -1;
+							if(player.getEquip('tengjia')||player.hasSkillTag('freeShan',false,{
+								player:target,
+								card:new lib.element.VCard({name:'sha'})
+							})) return -1;
 							if(get.effect(player,{name:'sha'},target,player)>=0) return -1;
 							if(!player.hasShan()){
 								if(ui.selected.targets.length) return 0;
